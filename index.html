@@ -6,47 +6,48 @@
         <title>FileShare - Send & Receive Files Anywhere</title>
         <link rel="stylesheet" href="style.css" />
         <link
-            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap"
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap"
             rel="stylesheet"
+        />
+        <link
+            rel="stylesheet"
+            href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
         />
     </head>
     <body>
         <header class="main-header">
             <nav class="navbar">
                 <div class="logo">
-                    <!-- <img src="/dev/null/logo.png" alt="FileShare Logo" /> Removed placeholder image -->
+                    <i class="fas fa-file-upload"></i>
                     <span>FileShare</span>
                 </div>
                 <ul class="nav-links">
-                    <li><a href="#">Transfer</a></li>
-                    <li><a href="#">Product</a></li>
-                    <li><a href="#">Pricing</a></li>
-                    <li><a href="#">Download</a></li>
+                    <li><a href="#"><i class="fas fa-exchange-alt"></i> Transfer</a></li>
+                    <li><a href="#"><i class="fas fa-box"></i> Product</a></li>
+                    <li><a href="#"><i class="fas fa-tag"></i> Pricing</a></li>
+                    <li><a href="#"><i class="fas fa-download"></i> Download</a></li>
                 </ul>
                 <div class="nav-actions">
-                    <a href="#" class="btn btn-secondary">Contact Us</a>
-                    <a href="#" class="btn btn-outline">Sign In</a>
+                    <a href="#" class="btn btn-secondary"><i class="fas fa-envelope"></i> Contact Us</a>
+                    <a href="#" class="btn btn-outline"><i class="fas fa-sign-in-alt"></i> Sign In</a>
                 </div>
             </nav>
         </header>
 
         <main class="main-content-area">
             <section class="hero-section">
-                <div class="hero-text">
-                    <h1>Send Large Files, Securely.</h1>
-                    <p>
-                        Share photos, videos, documents, and more with just a
-                        code. Fast, reliable, and free.
-                    </p>
-                </div>
+                <h1>Send Large Files, Securely.</h1>
+                <p>
+                    Share photos, videos, documents, and more with just a
+                    code. Fast, reliable, and free.
+                </p>
             </section>
 
             <section class="transfer-section">
                 <div class="transfer-container">
                     <div class="transfer-box send-box">
                         <div class="box-header">
-                            <h2>Send Files</h2>
-                            <span class="icon">&#x2B;</span>
+                            <h2><i class="fas fa-paper-plane"></i> Send Files</h2>
                         </div>
                         <div class="box-content">
                             <input
@@ -55,7 +56,7 @@
                                 class="custom-file-input"
                             />
                             <button id="sendButton" class="btn btn-primary">
-                                Send File
+                                <i class="fas fa-paper-plane"></i> Send File
                             </button>
                             <p
                                 id="sendStatusMessage"
@@ -86,8 +87,7 @@
 
                     <div class="transfer-box receive-box">
                         <div class="box-header">
-                            <h2>Receive Files</h2>
-                            <span class="icon">&#x2B;</span>
+                            <h2><i class="fas fa-download"></i> Receive Files</h2>
                         </div>
                         <div class="box-content">
                             <input
@@ -98,7 +98,7 @@
                                 class="text-input"
                             />
                             <button id="receiveButton" class="btn btn-primary">
-                                Receive File
+                                <i class="fas fa-download"></i> Receive File
                             </button>
                             <p
                                 id="receiveStatusMessage"
@@ -134,9 +134,9 @@
             <div class="footer-content">
                 <p>&copy; 2024 FileShare. All rights reserved.</p>
                 <ul class="footer-links">
-                    <li><a href="#">Privacy Policy</a></li>
-                    <li><a href="#">Terms of Service</a></li>
-                    <li><a href="#">Support</a></li>
+                    <li><a href="#"><i class="fas fa-shield-alt"></i> Privacy Policy</a></li>
+                    <li><a href="#"><i class="fas fa-file-contract"></i> Terms of Service</a></li>
+                    <li><a href="#"><i class="fas fa-headset"></i> Support</a></li>
                 </ul>
             </div>
         </footer>
@@ -144,12 +144,12 @@
         <!-- Code Display Popup -->
         <div id="codePopup" class="popup-overlay hidden">
             <div class="popup-content">
-                <h2>Your File Share Code</h2>
+                <h2><i class="fas fa-key"></i> Your File Share Code</h2>
                 <p>Share this code with your friend to receive the file:</p>
                 <div class="code-display">
                     <span id="displayCode"></span>
                     <button id="copyCodeButton" class="btn btn-secondary">
-                        Copy Code
+                        <i class="fas fa-copy"></i> Copy Code
                     </button>
                 </div>
                 <p class="popup-info">
@@ -157,7 +157,7 @@
                     code.
                 </p>
                 <button id="closePopupButton" class="btn btn-primary">
-                    Close
+                    <i class="fas fa-times"></i> Close
                 </button>
             </div>
         </div>
