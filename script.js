@@ -265,7 +265,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // --- File Sending Logic (Sender) ---
-  const CHUNK_SIZE = 16 * 1024; // 16KB chunks
+  const CHUNK_SIZE = 64 * 1024; // 64KB chunks
   let bytesSent = 0;
   let sendStartTime = null;
   let lastBytesSent = 0;
