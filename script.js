@@ -354,7 +354,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
           readOffset += chunk.byteLength;
           if (readOffset < file.size) {
-            readNextChunk();
+            // Add a small delay to prevent overwhelming the connection
+            setTimeout(readNextChunk, 0);
           } else {
             console.log("File sending complete!");
             sendStatusMessage.textContent = `File "${file.name}" sent successfully!`;
@@ -672,11 +673,18 @@ document.addEventListener("DOMContentLoaded", () => {
     // Add to body
     document.body.appendChild(notification);
     
+    // Show notification
+    setTimeout(() => {
+      notification.classList.add("show");
+    }, 10);
+    
     // Remove after 3 seconds
     setTimeout(() => {
-      notification.classList.add("hide");
+      notification.classList.remove("show");
       setTimeout(() => {
-        document.body.removeChild(notification);
+        if (notification.parentNode) {
+          document.body.removeChild(notification);
+        }
       }, 300);
     }, 3000);
   }
@@ -788,9 +796,9 @@ document.addEventListener("DOMContentLoaded", () => {
         };
         socket.emit("sender_file_metadata", fileMetadata); // Inform server about metadata
       } else {
-        sendStatusMessage.textContent = `Error generating code: ${response.message || "Unknown error"}`;
+        sendStatusMessage.textContent = `Error generating code: ${response.error || "Unknown error"}`;
         updateStatusMessage(sendStatusMessage, "error");
-        showNotification(`Error generating code: ${response.message || "Unknown error"}`, "error");
+        showNotification(`Error generating code: ${response.error || "Unknown error"}`, "error");
         resetAllTransferStates();
       }
       sendButton.disabled = false; // Re-enable if not waiting
@@ -805,6 +813,14 @@ document.addEventListener("DOMContentLoaded", () => {
       receiveStatusMessage.textContent = "Please enter a receive code.";
       updateStatusMessage(receiveStatusMessage, "error");
       showNotification("Please enter a receive code", "error");
+      return;
+    }
+
+    // Validate that code is numeric and 6 digits
+    if (!/^\d{6}$/.test(code)) {
+      receiveStatusMessage.textContent = "Please enter a valid 6-digit code.";
+      updateStatusMessage(receiveStatusMessage, "error");
+      showNotification("Please enter a valid 6-digit code", "error");
       return;
     }
 

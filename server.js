@@ -1,7 +1,8 @@
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
-const { nanoid } = require("nanoid");
+// Remove nanoid import since we'll generate numeric codes
+const crypto = require("crypto");
 
 const app = express();
 const server = http.createServer(app);
@@ -17,6 +18,12 @@ const PORT = process.env.PORT || 3000;
 // This maps a generated code to the sender's socket ID and potentially the receiver's socket ID
 // For a production app, use a persistent store (e.g., Redis) and add expiration logic.
 const transferRooms = {}; // code -> { senderSocketId: string, receiverSocketId: string | null, fileMetadata: object | null, lastActivity: number }
+
+// Function to generate 6-digit numeric code
+function generateNumericCode() {
+  // Generate a random 6-digit number (100000 to 999999)
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
 
 // Serve static files (your frontend)
 app.use(express.static(__dirname));
@@ -67,7 +74,18 @@ io.on("connection", (socket) => {
 
   // Sender registers to get a unique code
   socket.on("register_sender", (callback) => {
-    const code = nanoid(6); // Generate a 6-character unique code
+    // Generate a unique numeric code
+    let code;
+    let attempts = 0;
+    do {
+      code = generateNumericCode();
+      attempts++;
+      // Prevent infinite loop in case of collision (very unlikely with 6 digits)
+      if (attempts > 100) {
+        return callback({ error: "Unable to generate unique code" });
+      }
+    } while (transferRooms[code]);
+    
     transferRooms[code] = {
       senderSocketId: socket.id,
       receiverSocketId: null,

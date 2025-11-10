@@ -142,6 +142,7 @@ a {
     align-items: center;
     justify-content: center;
     gap: 8px;
+    min-width: 120px;
 }
 
 .btn-primary {
@@ -575,6 +576,7 @@ input[type="file"]:focus,
     box-shadow: var(--shadow);
     width: 100%;
     text-align: center;
+    font-family: 'Courier New', monospace;
 }
 
 .code-display .btn-secondary {
@@ -774,6 +776,7 @@ input[type="file"]:focus,
     .btn {
         padding: 10px 20px;
         font-size: 14px;
+        min-width: 100px;
     }
     
     input[type="file"],
@@ -843,6 +846,7 @@ input[type="file"]:focus,
     .btn {
         padding: 8px 16px;
         font-size: 13px;
+        min-width: 90px;
     }
     
     input[type="file"],
@@ -908,7 +912,7 @@ input[type="file"]:focus,
     }
 }
 
-@media (max-width: 400px) {
+@media (max-width: 480px) {
     .navbar {
         padding: 0 10px;
     }
@@ -944,11 +948,13 @@ input[type="file"]:focus,
     .btn {
         padding: 6px 12px;
         font-size: 12px;
+        min-width: 80px;
     }
     
     .code-display #displayCode {
         font-size: 20px;
         letter-spacing: 1px;
+        padding: 8px 15px;
     }
     
     .notification {
@@ -959,6 +965,102 @@ input[type="file"]:focus,
     
     .notification i {
         font-size: 14px;
+    }
+    
+    .transfer-box {
+        padding: 15px;
+    }
+    
+    .box-header {
+        margin-bottom: 20px;
+    }
+    
+    .box-header h2 {
+        font-size: 20px;
+    }
+    
+    input[type="file"],
+    .text-input {
+        padding: 8px 10px;
+        font-size: 13px;
+        margin-bottom: 15px;
+    }
+    
+    .custom-file-input::after {
+        font-size: 11px;
+        max-width: calc(100% - 70px);
+        padding-left: 70px;
+    }
+    
+    .status-message {
+        font-size: 13px;
+        padding: 8px 10px;
+        margin-top: 15px;
+    }
+    
+    .progress-container {
+        margin-top: 15px;
+    }
+    
+    .progress-text {
+        font-size: 11px;
+    }
+    
+    .transfer-details {
+        font-size: 10px;
+    }
+}
+
+@media (max-width: 360px) {
+    .logo {
+        font-size: 18px;
+    }
+    
+    .hero-section h1 {
+        font-size: 24px;
+    }
+    
+    .hero-section p {
+        font-size: 13px;
+    }
+    
+    .box-header h2 {
+        font-size: 18px;
+    }
+    
+    .btn {
+        padding: 5px 10px;
+        font-size: 11px;
+        min-width: 70px;
+    }
+    
+    .code-display #displayCode {
+        font-size: 18px;
+        letter-spacing: 1px;
+        padding: 6px 12px;
+    }
+    
+    .notification {
+        max-width: 160px;
+        padding: 6px 8px;
+        font-size: 11px;
+    }
+    
+    .transfer-box {
+        padding: 12px;
+    }
+    
+    input[type="file"],
+    .text-input {
+        padding: 6px 8px;
+        font-size: 12px;
+        margin-bottom: 12px;
+    }
+    
+    .status-message {
+        font-size: 12px;
+        padding: 6px 8px;
+        margin-top: 12px;
     }
 }
 

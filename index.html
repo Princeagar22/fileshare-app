@@ -2,7 +2,8 @@
 <html lang="en">
     <head>
         <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+        <meta name="theme-color" content="#4361ee" />
         <title>FileShare - Send & Receive Files Anywhere</title>
         <link rel="stylesheet" href="style.css" />
         <link
@@ -13,6 +14,7 @@
             rel="stylesheet"
             href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
         />
+        <link rel="manifest" href="manifest.json" />
     </head>
     <body>
         <header class="main-header">
@@ -22,14 +24,14 @@
                     <span>FileShare</span>
                 </div>
                 <ul class="nav-links">
-                    <li><a href="#"><i class="fas fa-exchange-alt"></i> Transfer</a></li>
-                    <li><a href="#"><i class="fas fa-box"></i> Product</a></li>
-                    <li><a href="#"><i class="fas fa-tag"></i> Pricing</a></li>
-                    <li><a href="#"><i class="fas fa-download"></i> Download</a></li>
+                    <li><a href="#"><i class="fas fa-exchange-alt"></i> <span>Transfer</span></a></li>
+                    <li><a href="#"><i class="fas fa-box"></i> <span>Product</span></a></li>
+                    <li><a href="#"><i class="fas fa-tag"></i> <span>Pricing</span></a></li>
+                    <li><a href="#"><i class="fas fa-download"></i> <span>Download</span></a></li>
                 </ul>
                 <div class="nav-actions">
-                    <a href="#" class="btn btn-secondary"><i class="fas fa-envelope"></i> Contact Us</a>
-                    <a href="#" class="btn btn-outline"><i class="fas fa-sign-in-alt"></i> Sign In</a>
+                    <a href="#" class="btn btn-secondary"><i class="fas fa-envelope"></i> <span>Contact Us</span></a>
+                    <a href="#" class="btn btn-outline"><i class="fas fa-sign-in-alt"></i> <span>Sign In</span></a>
                 </div>
             </nav>
         </header>
@@ -96,6 +98,8 @@
                                 placeholder="Enter 6-digit code"
                                 maxlength="6"
                                 class="text-input"
+                                inputmode="numeric"
+                                pattern="[0-9]*"
                             />
                             <button id="receiveButton" class="btn btn-primary">
                                 <i class="fas fa-download"></i> Receive File
@@ -134,9 +138,9 @@
             <div class="footer-content">
                 <p>&copy; 2024 FileShare. All rights reserved.</p>
                 <ul class="footer-links">
-                    <li><a href="#"><i class="fas fa-shield-alt"></i> Privacy Policy</a></li>
-                    <li><a href="#"><i class="fas fa-file-contract"></i> Terms of Service</a></li>
-                    <li><a href="#"><i class="fas fa-headset"></i> Support</a></li>
+                    <li><a href="#"><i class="fas fa-shield-alt"></i> <span>Privacy Policy</span></a></li>
+                    <li><a href="#"><i class="fas fa-file-contract"></i> <span>Terms of Service</span></a></li>
+                    <li><a href="#"><i class="fas fa-headset"></i> <span>Support</span></a></li>
                 </ul>
             </div>
         </footer>
