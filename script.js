@@ -124,9 +124,9 @@ document.addEventListener("DOMContentLoaded", () => {
           new RTCSessionDescription(data.answer),
         );
         sendStatusMessage.textContent =
-          "Connection established. Ready to send.";
-        updateStatusMessage(sendStatusMessage, "success");
-        showNotification("Connection established. Ready to send file", "success");
+          "Connection established. Waiting for data channel...";
+        updateStatusMessage(sendStatusMessage, "info");
+        showNotification("Connection established. Waiting for data channel...", "info");
       }
     });
 
@@ -259,7 +259,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     pc.onnegotiationneeded = async () => {
       // This event fires on the initiator (sender in our case)
-      if (isInitiator) {
+      if (isInitiator && peerConnection && peerConnection.signalingState === "stable") {
         try {
           const offer = await pc.createOffer({
             offerToReceiveAudio: false,
@@ -293,6 +293,7 @@ document.addEventListener("DOMContentLoaded", () => {
         updateStatusMessage(sendStatusMessage, "info");
         showProgressDisplay(sendProgressContainer);
         showNotification("Data channel open! Starting file transfer...", "info");
+        // Start sending file immediately when data channel opens
         sendFileOverDataChannel(fileToSend, channel, code);
       } else {
         receiveStatusMessage.textContent =
@@ -343,6 +344,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // --- File Sending Logic (Sender) ---
   async function sendFileOverDataChannel(file, channel, code) {
+    if (!file) {
+      console.error("No file to send");
+      updateOverallStatus("Error: No file selected to send.", "error");
+      showNotification("Error: No file selected to send.", "error");
+      return;
+    }
+
     bytesSent = 0;
     sendStartTime = Date.now();
     lastBytesSent = 0;
@@ -357,8 +365,18 @@ document.addEventListener("DOMContentLoaded", () => {
       fileType: file.type,
       code: code, // Include code for receiver context
     };
-    channel.send(JSON.stringify(metadata));
-    console.log("Sent file metadata:", metadata);
+    
+    try {
+      channel.send(JSON.stringify(metadata));
+      console.log("Sent file metadata:", metadata);
+      sendStatusMessage.textContent = `Sending "${file.name}"...`;
+      updateStatusMessage(sendStatusMessage, "info");
+    } catch (e) {
+      console.error("Error sending metadata:", e);
+      updateOverallStatus(`Error sending metadata: ${e.message}`, "error");
+      showNotification(`Error sending metadata: ${e.message}`, "error");
+      return;
+    }
 
     const fileReader = new FileReader();
 
@@ -380,7 +398,11 @@ document.addEventListener("DOMContentLoaded", () => {
             updateStatusMessage(sendStatusMessage, "success");
             showNotification(`File "${file.name}" sent successfully!`, "success");
             // Optionally send a "transfer_complete" message to receiver via data channel
-            channel.send(JSON.stringify({ type: "complete", code: code }));
+            try {
+              channel.send(JSON.stringify({ type: "complete", code: code }));
+            } catch (e) {
+              console.error("Error sending completion message:", e);
+            }
           }
         } catch (e) {
           console.error("Error sending chunk over data channel:", e);
