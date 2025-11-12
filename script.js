@@ -45,19 +45,19 @@ document.addEventListener("DOMContentLoaded", () => {
   let lastSendTime = Date.now();
   let sendSpeedMbps = 0;
 
-  // Optimize chunk size based on browser capabilities for better performance
-  const CHUNK_SIZE = 256 * 1024; // Increased to 256KB for better performance
+  // Optimize chunk size for maximum performance - increased to 1MB
+  const CHUNK_SIZE = 1024 * 1024; // 1MB chunks for faster transfers
   let readOffset = 0; // Current position in the file being read
 
-  // STUN/TURN servers for NAT traversal
-  // **IMPORTANT**: For reliable transfers, especially across different networks,
-  // you will need a TURN server. Public STUN servers are often not enough.
-  // Obtain TURN credentials from a service like Twilio, Xirsys, or host your own coturn server.
+  // Enhanced STUN/TURN servers configuration for better connectivity
   const iceServers = {
     iceServers: [
       { urls: "stun:stun.l.google.com:19302" },
       { urls: "stun:stun1.l.google.com:19302" },
-      // Example of a TURN server. Replace with your actual credentials!
+      { urls: "stun:stun.stunprotocol.org:3478" },
+      { urls: "stun:stun.voiparound.com" },
+      { urls: "stun:stun.voipbuster.com" },
+      // Example of TURN servers - uncomment and add real credentials for production
       // {
       //   urls: 'turn:YOUR_TURN_SERVER_URL:PORT?transport=udp',
       //   username: 'YOUR_USERNAME',
@@ -160,10 +160,14 @@ document.addEventListener("DOMContentLoaded", () => {
         dataChannel = peerConnection.createDataChannel("fileTransfer", {
           ordered: true, // Ensure messages are delivered reliably and in order
           maxRetransmits: null, // No limit on retransmissions for reliability
+          maxPacketLifeTime: null, // No time limit for packet delivery
         });
         setupDataChannelEvents(dataChannel, data.code); // Setup sender's data channel events
 
-        const offer = await peerConnection.createOffer();
+        const offer = await peerConnection.createOffer({
+          offerToReceiveAudio: false,
+          offerToReceiveVideo: false,
+        });
         await peerConnection.setLocalDescription(offer);
         socket.emit("webrtc_offer", {
           code: data.code,
@@ -194,7 +198,13 @@ document.addEventListener("DOMContentLoaded", () => {
       peerConnection = null;
     }
 
-    const pc = new RTCPeerConnection(iceServers);
+    // Enhanced configuration for better performance
+    const pc = new RTCPeerConnection({
+      ...iceServers,
+      bundlePolicy: 'max-bundle',
+      rtcpMuxPolicy: 'require',
+      iceCandidatePoolSize: 10,
+    });
 
     pc.onicecandidate = (event) => {
       if (event.candidate) {
@@ -241,6 +251,8 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!isInitiator) {
         // Receiver receives the data channel
         dataChannel = event.channel;
+        // Optimize data channel for high throughput
+        dataChannel.binaryType = "arraybuffer";
         setupDataChannelEvents(dataChannel, code);
       }
     };
@@ -249,7 +261,10 @@ document.addEventListener("DOMContentLoaded", () => {
       // This event fires on the initiator (sender in our case)
       if (isInitiator) {
         try {
-          const offer = await pc.createOffer();
+          const offer = await pc.createOffer({
+            offerToReceiveAudio: false,
+            offerToReceiveVideo: false,
+          });
           await pc.setLocalDescription(offer);
           socket.emit("webrtc_offer", {
             code: code,
@@ -267,6 +282,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // --- Data Channel Event Handlers ---
   function setupDataChannelEvents(channel, code) {
+    // Optimize data channel for maximum throughput
+    channel.binaryType = "arraybuffer";
+    
     channel.onopen = () => {
       console.log("Data channel is open!");
       if (isSender) {
@@ -354,8 +372,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
           readOffset += chunk.byteLength;
           if (readOffset < file.size) {
-            // Add a small delay to prevent overwhelming the connection
-            setTimeout(readNextChunk, 0);
+            // Use setImmediate for better performance instead of setTimeout
+            setImmediate(readNextChunk);
           } else {
             console.log("File sending complete!");
             sendStatusMessage.textContent = `File "${file.name}" sent successfully!`;
@@ -908,3 +926,10 @@ document.addEventListener("DOMContentLoaded", () => {
   initializeSocket();
   sendButton.disabled = true; // Initially disable send button until file is chosen
 });
+
+// Polyfill for setImmediate if not available
+if (typeof window.setImmediate === 'undefined') {
+  window.setImmediate = function(callback) {
+    return setTimeout(callback, 0);
+  };
+}

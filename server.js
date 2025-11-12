@@ -6,12 +6,21 @@ const crypto = require("crypto");
 
 const app = express();
 const server = http.createServer(app);
+
+// Enhanced Socket.IO configuration for better performance
 const io = new Server(server, {
   cors: {
     origin: "*", // Allow all origins for development
     methods: ["GET", "POST"],
   },
+  transports: ['websocket', 'polling'], // Prefer websocket but fallback to polling
+  allowEIO3: true, // Allow Engine.IO v3 clients
+  pingInterval: 25000, // Increase ping interval to reduce overhead
+  pingTimeout: 30000, // Increase ping timeout
+  upgradeTimeout: 30000, // Increase upgrade timeout
+  maxHttpBufferSize: 1e8, // Increase buffer size to 100MB for large metadata
 });
+
 const PORT = process.env.PORT || 3000;
 
 // In-memory store for active transfer rooms
@@ -28,8 +37,8 @@ function generateNumericCode() {
 // Serve static files (your frontend)
 app.use(express.static(__dirname));
 
-// Middleware to parse JSON bodies
-app.use(express.json());
+// Middleware to parse JSON bodies with increased limit for large metadata
+app.use(express.json({ limit: '50mb' }));
 
 // --- Socket.IO Logic ---
 
