@@ -863,20 +863,30 @@ document.addEventListener("DOMContentLoaded", () => {
       if (response.success) {
         console.log("Joined as receiver. Response:", response);
         fileMetadata = response.fileMetadata; // Store metadata
-        if (fileMetadata) {
+        if (response.message) {
+          // If there's a message, show it (e.g., "Waiting for sender to connect...")
+          receiveStatusMessage.textContent = response.message;
+          updateStatusMessage(receiveStatusMessage, "info");
+          showNotification(response.message, "info");
+        } else if (fileMetadata) {
           receiveStatusMessage.textContent = `Code accepted. Waiting for sender to connect for "${fileMetadata.fileName}"...`;
+          updateStatusMessage(receiveStatusMessage, "info");
+          showNotification(`Code accepted. Waiting for sender to connect for "${fileMetadata.fileName}"...`, "info");
         } else {
           receiveStatusMessage.textContent =
             "Code accepted. Waiting for sender to connect...";
+          updateStatusMessage(receiveStatusMessage, "info");
+          showNotification("Code accepted. Waiting for sender to connect...", "info");
         }
-        updateStatusMessage(receiveStatusMessage, "success");
-        showNotification("Code accepted. Waiting for sender to connect...", "success");
-        peerConnection = createPeerConnection(
-          code,
-          false,
-          response.senderSocketId,
-        ); // Create PC for receiver
-        // Data channel will be created by sender and received via pc.ondatachannel
+        
+        // Only create peer connection if sender is already connected
+        if (response.senderSocketId) {
+          peerConnection = createPeerConnection(
+            code,
+            false,
+            response.senderSocketId,
+          ); // Create PC for receiver
+        }
       } else {
         receiveStatusMessage.textContent = `Error: ${response.message || "Invalid or expired code."}`;
         updateStatusMessage(receiveStatusMessage, "error");

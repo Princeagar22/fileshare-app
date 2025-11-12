@@ -176,14 +176,22 @@ io.on("connection", (socket) => {
         receiverSocketId: socket.id,
         fileMetadata: room.fileMetadata, // Send metadata to sender too, if needed
       });
+      
+      // Also send a confirmation to the receiver that connection is being established
+      callback({
+        success: true,
+        fileMetadata: room.fileMetadata, // Receiver needs to know file details
+        senderSocketId: room.senderSocketId,
+      });
+    } else {
+      // If sender is not connected, still send success but with warning
+      callback({
+        success: true,
+        fileMetadata: room.fileMetadata,
+        senderSocketId: room.senderSocketId,
+        message: "Code accepted. Waiting for sender to connect...",
+      });
     }
-
-    // Send success and file metadata to the receiver
-    callback({
-      success: true,
-      fileMetadata: room.fileMetadata, // Receiver needs to know file details
-      senderSocketId: room.senderSocketId,
-    });
   });
 
   // --- WebRTC Signaling ---
