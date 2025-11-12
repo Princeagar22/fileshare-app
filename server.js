@@ -1,8 +1,7 @@
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
-// Remove nanoid import since we'll generate numeric codes
-const crypto = require("crypto");
+const { randomInt } = require("crypto");
 
 const app = express();
 const server = http.createServer(app);
@@ -28,10 +27,44 @@ const PORT = process.env.PORT || 3000;
 // For a production app, use a persistent store (e.g., Redis) and add expiration logic.
 const transferRooms = {}; // code -> { senderSocketId: string, receiverSocketId: string | null, fileMetadata: object | null, lastActivity: number }
 
+function closeRoom(code, message, options = {}) {
+  const room = transferRooms[code];
+  if (!room) {
+    return;
+  }
+
+  const { notifySender = true, notifyReceiver = true } = options;
+
+  if (message) {
+    const payload = { code, message };
+    if (
+      notifySender &&
+      room.senderSocketId &&
+      io.sockets.sockets.has(room.senderSocketId)
+    ) {
+      io.to(room.senderSocketId).emit("transfer_interrupted", payload);
+    }
+    if (
+      notifyReceiver &&
+      room.receiverSocketId &&
+      io.sockets.sockets.has(room.receiverSocketId)
+    ) {
+      io.to(room.receiverSocketId).emit("transfer_interrupted", payload);
+    }
+  }
+
+  delete transferRooms[code];
+}
+
+function updateRoomActivity(code) {
+  if (transferRooms[code]) {
+    transferRooms[code].lastActivity = Date.now();
+  }
+}
+
 // Function to generate 6-digit numeric code
 function generateNumericCode() {
-  // Generate a random 6-digit number (100000 to 999999)
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  return randomInt(100000, 1000000).toString();
 }
 
 // Serve static files (your frontend)
@@ -53,17 +86,7 @@ io.on("connection", (socket) => {
       const room = transferRooms[code];
       if (room.senderSocketId === socket.id) {
         console.log(`Sender ${socket.id} disconnected. Deleting room ${code}.`);
-        // Notify receiver if connected
-        if (
-          room.receiverSocketId &&
-          io.sockets.sockets.has(room.receiverSocketId)
-        ) {
-          io.to(room.receiverSocketId).emit("transfer_interrupted", {
-            code: code,
-            message: "Sender disconnected. Transfer cannot proceed.",
-          });
-        }
-        delete transferRooms[code];
+        closeRoom(code, "Sender disconnected. Transfer cannot proceed.");
       } else if (room.receiverSocketId === socket.id) {
         console.log(`Receiver ${socket.id} disconnected from room ${code}.`);
         room.receiverSocketId = null; // Mark receiver as disconnected, sender can wait for new receiver
@@ -83,6 +106,18 @@ io.on("connection", (socket) => {
 
   // Sender registers to get a unique code
   socket.on("register_sender", (callback) => {
+    // Ensure the sender doesn't hold stale rooms
+    for (const code in transferRooms) {
+      if (transferRooms[code].senderSocketId === socket.id) {
+        console.log(`Sender ${socket.id} already had room ${code}. Closing it before generating a new code.`);
+        closeRoom(
+          code,
+          "Previous transfer session closed. A new code was generated.",
+          { notifySender: false },
+        );
+      }
+    }
+
     // Generate a unique numeric code
     let code;
     let attempts = 0;
@@ -111,7 +146,7 @@ io.on("connection", (socket) => {
     const room = transferRooms[code];
     if (room && room.senderSocketId === socket.id) {
       room.fileMetadata = { fileName, fileSize, fileType };
-      room.lastActivity = Date.now();
+      updateRoomActivity(code);
       console.log(
         `Sender ${socket.id} provided metadata for ${code}: ${fileName}, ${fileSize} bytes`,
       );
@@ -146,6 +181,14 @@ io.on("connection", (socket) => {
       );
       return callback({ success: false, message: "Invalid or expired code." });
     }
+    if (!io.sockets.sockets.has(room.senderSocketId)) {
+      console.log(`Receiver ${socket.id} tried to join code ${code}, but sender is no longer connected.`);
+      closeRoom(code, "Sender disconnected. Please ask them to generate a new code.");
+      return callback({
+        success: false,
+        message: "Sender disconnected. Ask them to generate a fresh code.",
+      });
+    }
     if (room.receiverSocketId) {
       console.log(
         `Receiver ${socket.id} tried to join code ${code}, but a receiver is already present.`,
@@ -164,7 +207,7 @@ io.on("connection", (socket) => {
     }
 
     room.receiverSocketId = socket.id;
-    room.lastActivity = Date.now();
+    updateRoomActivity(code);
     console.log(
       `Receiver ${socket.id} joined code: ${code}. Notifying sender ${room.senderSocketId}.`,
     );
@@ -208,7 +251,7 @@ io.on("connection", (socket) => {
       console.log(
         `Relaying offer from sender ${socket.id} to receiver ${room.receiverSocketId} for code ${code}`,
       );
-      room.lastActivity = Date.now();
+      updateRoomActivity(code);
       io.to(room.receiverSocketId).emit("webrtc_offer", {
         code: code,
         senderSocketId: socket.id, // Receiver needs to know who sent the offer
@@ -237,7 +280,7 @@ io.on("connection", (socket) => {
       console.log(
         `Relaying answer from receiver ${socket.id} to sender ${room.senderSocketId} for code ${code}`,
       );
-      room.lastActivity = Date.now();
+      updateRoomActivity(code);
       io.to(room.senderSocketId).emit("webrtc_answer", {
         code: code,
         receiverSocketId: socket.id, // Sender needs to know who sent the answer
@@ -259,7 +302,7 @@ io.on("connection", (socket) => {
     const { code, candidate, targetSocketId } = data;
     const room = transferRooms[code];
     if (room) {
-      room.lastActivity = Date.now();
+      updateRoomActivity(code);
       // Relay to the other peer in the room
       if (
         room.senderSocketId === socket.id &&
@@ -311,27 +354,19 @@ setInterval(() => {
     const isReceiverConnected =
       room.receiverSocketId && io.sockets.sockets.has(room.receiverSocketId);
 
-    if (
-      !isSenderConnected ||
-      (now - room.lastActivity > ROOM_INACTIVITY_TIMEOUT &&
-        !isReceiverConnected)
-    ) {
-      console.log(`Cleaning up inactive/disconnected room: ${code}`);
-      if (isSenderConnected) {
-        // Notify sender if still connected
-        io.to(room.senderSocketId).emit("transfer_interrupted", {
-          code: code,
-          message: "Transfer room expired due to inactivity.",
-        });
-      }
-      if (isReceiverConnected) {
-        // Notify receiver if still connected
-        io.to(room.receiverSocketId).emit("transfer_interrupted", {
-          code: code,
-          message: "Transfer room expired due to inactivity.",
-        });
-      }
-      delete transferRooms[code];
+    const inactiveTooLong =
+      now - room.lastActivity > ROOM_INACTIVITY_TIMEOUT &&
+      !isReceiverConnected;
+
+    if (!isSenderConnected) {
+      console.log(`Cleaning up room ${code}: sender disconnected.`);
+      closeRoom(
+        code,
+        "Sender disconnected. Please ask them to generate a new transfer code.",
+      );
+    } else if (inactiveTooLong) {
+      console.log(`Cleaning up inactive room: ${code}`);
+      closeRoom(code, "Transfer room expired due to inactivity.");
     }
   }
 }, ROOM_CLEANUP_INTERVAL);

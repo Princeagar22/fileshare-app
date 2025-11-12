@@ -22,6 +22,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const displayCode = document.getElementById("displayCode");
   const copyCodeButton = document.getElementById("copyCodeButton");
   const closePopupButton = document.getElementById("closePopupButton");
+  const notificationContainer = document.createElement("div");
+  notificationContainer.className = "notification-container";
+  document.body.appendChild(notificationContainer);
 
   // --- WebRTC Related Variables ---
   let socket = null;
@@ -34,13 +37,11 @@ document.addEventListener("DOMContentLoaded", () => {
   const receivedChunks = [];
   let receivedBytes = 0;
   let fileMetadata = null;
-  let downloadStartTime = null; // For receiver ETA
   let lastReceivedBytes = 0;
   let lastReceiveTime = Date.now();
   let receiveSpeedMbps = 0;
 
   let bytesSent = 0; // For sender progress
-  let sendStartTime = null;
   let lastBytesSent = 0;
   let lastSendTime = Date.now();
   let sendSpeedMbps = 0;
@@ -86,19 +87,26 @@ document.addEventListener("DOMContentLoaded", () => {
       console.log("Received WebRTC Offer:", data);
       if (!isSender && currentTransferCode === data.code && !peerConnection) {
         peerConnection = createPeerConnection(data.code, false); // Create receiver PC
-        await peerConnection.setRemoteDescription(
-          new RTCSessionDescription(data.offer),
-        );
-        const answer = await peerConnection.createAnswer();
-        await peerConnection.setLocalDescription(answer);
-        socket.emit("webrtc_answer", {
-          code: data.code,
-          answer: peerConnection.localDescription,
-          targetSocketId: data.senderSocketId,
-        });
-        receiveStatusMessage.textContent = "Negotiating connection...";
-        updateStatusMessage(receiveStatusMessage, "info");
-        showNotification("Negotiating connection...", "info");
+        try {
+          await peerConnection.setRemoteDescription(
+            new RTCSessionDescription(data.offer),
+          );
+          const answer = await peerConnection.createAnswer();
+          await peerConnection.setLocalDescription(answer);
+          socket.emit("webrtc_answer", {
+            code: data.code,
+            answer: peerConnection.localDescription,
+            targetSocketId: data.senderSocketId,
+          });
+          receiveStatusMessage.textContent = "Negotiating connection...";
+          updateStatusMessage(receiveStatusMessage, "info");
+          showNotification("Negotiating connection...", "info");
+          console.log("Sent WebRTC answer to sender");
+        } catch (error) {
+          console.error("Error handling offer:", error);
+          updateOverallStatus(`Error handling connection: ${error.message}`, "error");
+          showNotification(`Error handling connection: ${error.message}`, "error");
+        }
       } else if (peerConnection) {
         console.warn(
           "Offer received but peerConnection already exists or I am sender.",
@@ -109,13 +117,20 @@ document.addEventListener("DOMContentLoaded", () => {
     socket.on("webrtc_answer", async (data) => {
       console.log("Received WebRTC Answer:", data);
       if (isSender && currentTransferCode === data.code && peerConnection) {
-        await peerConnection.setRemoteDescription(
-          new RTCSessionDescription(data.answer),
-        );
-        sendStatusMessage.textContent =
-          "Connection established. Waiting for data channel...";
-        updateStatusMessage(sendStatusMessage, "info");
-        showNotification("Connection established. Waiting for data channel...", "info");
+        try {
+          await peerConnection.setRemoteDescription(
+            new RTCSessionDescription(data.answer),
+          );
+          sendStatusMessage.textContent =
+            "Connection established. Waiting for data channel...";
+          updateStatusMessage(sendStatusMessage, "info");
+          showNotification("Connection established. Waiting for data channel...", "info");
+          console.log("Set remote description from answer");
+        } catch (error) {
+          console.error("Error handling answer:", error);
+          updateOverallStatus(`Error establishing connection: ${error.message}`, "error");
+          showNotification(`Error establishing connection: ${error.message}`, "error");
+        }
       }
     });
 
@@ -150,18 +165,28 @@ document.addEventListener("DOMContentLoaded", () => {
           maxRetransmits: null,
           maxPacketLifeTime: null,
         });
-        setupDataChannelEvents(dataChannel, data.code); // Setup sender's data channel events
-
-        const offer = await peerConnection.createOffer({
-          offerToReceiveAudio: false,
-          offerToReceiveVideo: false,
-        });
-        await peerConnection.setLocalDescription(offer);
-        socket.emit("webrtc_offer", {
-          code: data.code,
-          offer: peerConnection.localDescription,
-          targetSocketId: data.receiverSocketId,
-        });
+      
+        // Set up data channel events BEFORE creating offer
+        setupDataChannelEvents(dataChannel, data.code);
+      
+        try {
+          // Create offer after setting up data channel events
+          const offer = await peerConnection.createOffer({
+            offerToReceiveAudio: false,
+            offerToReceiveVideo: false,
+          });
+          await peerConnection.setLocalDescription(offer);
+          socket.emit("webrtc_offer", {
+            code: data.code,
+            offer: peerConnection.localDescription,
+            targetSocketId: data.receiverSocketId,
+          });
+          console.log("Sent WebRTC offer to receiver");
+        } catch (error) {
+          console.error("Error creating/sending offer:", error);
+          updateOverallStatus(`Error establishing connection: ${error.message}`, "error");
+          showNotification(`Error establishing connection: ${error.message}`, "error");
+        }
       }
     });
 
@@ -198,9 +223,7 @@ document.addEventListener("DOMContentLoaded", () => {
         socket.emit("webrtc_ice_candidate", {
           code: code,
           candidate: event.candidate,
-          targetSocketId:
-            targetSocketId ||
-            (isInitiator ? currentReceiverSocketId : currentSenderSocketId),
+          targetSocketId: targetSocketId,
         });
       }
     };
@@ -276,8 +299,19 @@ document.addEventListener("DOMContentLoaded", () => {
         showProgressDisplay(sendProgressContainer);
         showNotification("Data channel open! Starting file transfer...", "info");
         // Start sending file immediately when data channel opens
+        // Use a small delay to ensure everything is ready
         setTimeout(() => {
-          sendFileOverDataChannel(fileToSend, channel, code);
+          if (fileToSend && channel.readyState === "open") {
+            sendFileOverDataChannel(fileToSend, channel, code);
+          } else {
+            console.warn("File or channel not ready for sending");
+            // Try one more time after a longer delay
+            setTimeout(() => {
+              if (fileToSend && channel.readyState === "open") {
+                sendFileOverDataChannel(fileToSend, channel, code);
+              }
+            }, 500);
+          }
         }, 100);
       } else {
         receiveStatusMessage.textContent =
@@ -287,7 +321,7 @@ document.addEventListener("DOMContentLoaded", () => {
         showNotification("Data channel open! Ready to receive file", "info");
       }
     };
-
+    
     channel.onclose = () => {
       console.log("Data channel closed.");
       if (isSender && bytesSent < fileToSend.size) {
@@ -332,7 +366,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     bytesSent = 0;
-    sendStartTime = Date.now();
     lastBytesSent = 0;
     lastSendTime = Date.now();
     readOffset = 0;
@@ -478,7 +511,6 @@ document.addEventListener("DOMContentLoaded", () => {
           showNotification(`Receiving "${fileMetadata.fileName}"...`, "info");
           receivedBytes = 0;
           receivedChunks.length = 0;
-          downloadStartTime = Date.now();
           lastReceivedBytes = 0;
           lastReceiveTime = Date.now();
         } else if (msg.type === "complete") {
@@ -678,18 +710,18 @@ document.addEventListener("DOMContentLoaded", () => {
       <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : type === 'warning' ? 'exclamation-triangle' : 'info-circle'}"></i>
       <span>${message}</span>
     `;
-    
-    document.body.appendChild(notification);
-    
-    setTimeout(() => {
+
+    notificationContainer.appendChild(notification);
+
+    requestAnimationFrame(() => {
       notification.classList.add("show");
-    }, 10);
-    
+    });
+
     setTimeout(() => {
       notification.classList.remove("show");
       setTimeout(() => {
-        if (notification.parentNode) {
-          document.body.removeChild(notification);
+        if (notification.parentNode === notificationContainer) {
+          notificationContainer.removeChild(notification);
         }
       }, 300);
     }, 3000);
@@ -708,13 +740,11 @@ document.addEventListener("DOMContentLoaded", () => {
     receivedChunks.length = 0;
     receivedBytes = 0;
     fileMetadata = null;
-    downloadStartTime = null;
     lastReceivedBytes = 0;
     lastReceiveTime = Date.now();
     receiveSpeedMbps = 0;
 
     bytesSent = 0;
-    sendStartTime = null;
     lastBytesSent = 0;
     lastSendTime = Date.now();
     sendSpeedMbps = 0;
@@ -904,10 +934,6 @@ document.addEventListener("DOMContentLoaded", () => {
       hideCodePopup();
     }
   });
-
-  const notificationContainer = document.createElement("div");
-  notificationContainer.className = "notification-container";
-  document.body.appendChild(notificationContainer);
 
   initializeSocket();
   sendButton.disabled = true;

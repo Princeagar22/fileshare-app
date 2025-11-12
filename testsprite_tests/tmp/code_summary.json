@@ -1,0 +1,28 @@
+{
+  "project": "FileShare Pro",
+  "tech_stack": {
+    "backend": [
+      "Node.js",
+      "Express",
+      "Socket.IO"
+    ],
+    "frontend": [
+      "HTML5",
+      "CSS3",
+      "JavaScript",
+      "WebRTC",
+      "Font Awesome"
+    ],
+    "tooling": [
+      "Procfile"
+    ]
+  },
+  "features": [
+    "Peer-to-peer file transfer using WebRTC data channels",
+    "Socket.IO signaling with six-digit room codes",
+    "Real-time progress, speed, and ETA indicators for send and receive flows",
+    "Notification system with status messaging and code sharing popup",
+    "In-memory transfer room lifecycle management with inactivity cleanup"
+  ]
+}
+
