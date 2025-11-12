@@ -1,172 +1,128 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-        <meta name="theme-color" content="#4361ee" />
-        <title>FileShare - Send & Receive Files Anywhere</title>
-        <link rel="stylesheet" href="style.css" />
-        <link
-            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap"
-            rel="stylesheet"
-        />
-        <link
-            rel="stylesheet"
-            href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
-        />
-        <link rel="manifest" href="manifest.json" />
-    </head>
-    <body>
-        <header class="main-header">
-            <nav class="navbar">
-                <div class="logo">
-                    <i class="fas fa-file-upload"></i>
-                    <span>FileShare</span>
-                </div>
-                <ul class="nav-links">
-                    <li><a href="#"><i class="fas fa-exchange-alt"></i> <span>Transfer</span></a></li>
-                    <li><a href="#"><i class="fas fa-box"></i> <span>Product</span></a></li>
-                    <li><a href="#"><i class="fas fa-tag"></i> <span>Pricing</span></a></li>
-                    <li><a href="#"><i class="fas fa-download"></i> <span>Download</span></a></li>
-                </ul>
-                <div class="nav-actions">
-                    <a href="#" class="btn btn-secondary"><i class="fas fa-envelope"></i> <span>Contact Us</span></a>
-                    <a href="#" class="btn btn-outline"><i class="fas fa-sign-in-alt"></i> <span>Sign In</span></a>
-                </div>
-            </nav>
-        </header>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FileShare Pro - Fast & Secure File Transfer</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔗</text></svg>">
+</head>
+<body>
+    <!-- Header Section -->
+    <header class="main-header">
+        <nav class="navbar">
+            <div class="logo">
+                <i class="fas fa-paper-plane"></i>
+                <span>FileShare Pro</span>
+            </div>
+            <ul class="nav-links">
+                <li><a href="#"><i class="fas fa-home"></i> Home</a></li>
+                <li><a href="#"><i class="fas fa-info-circle"></i> About</a></li>
+                <li><a href="#"><i class="fas fa-shield-alt"></i> Security</a></li>
+                <li><a href="#"><i class="fas fa-question-circle"></i> Help</a></li>
+            </ul>
+            <div class="nav-actions">
+                <button class="btn btn-outline"><i class="fas fa-download"></i> Download App</button>
+                <button class="btn btn-primary"><i class="fas fa-user"></i> Sign In</button>
+            </div>
+        </nav>
+    </header>
 
-        <main class="main-content-area">
-            <section class="hero-section">
-                <h1>Send Large Files, Securely.</h1>
-                <p>
-                    Share photos, videos, documents, and more with just a
-                    code. Fast, reliable, and free.
-                </p>
-            </section>
+    <!-- Main Content -->
+    <main class="main-content-area">
+        <!-- Hero Section -->
+        <section class="hero-section">
+            <h1>Lightning Fast File Transfer</h1>
+            <p>Send files up to 10GB instantly with military-grade encryption. No signup required.</p>
+        </section>
 
-            <section class="transfer-section">
-                <div class="transfer-container">
-                    <div class="transfer-box send-box">
-                        <div class="box-header">
-                            <h2><i class="fas fa-paper-plane"></i> Send Files</h2>
-                        </div>
-                        <div class="box-content">
-                            <input
-                                type="file"
-                                id="fileInput"
-                                class="custom-file-input"
-                            />
-                            <button id="sendButton" class="btn btn-primary">
-                                <i class="fas fa-paper-plane"></i> Send File
-                            </button>
-                            <p
-                                id="sendStatusMessage"
-                                class="status-message"
-                            ></p>
-
-                            <!-- Live Progress Display for Sender -->
-                            <div
-                                id="sendProgressContainer"
-                                class="progress-container hidden"
-                            >
-                                <div class="progress-bar-outer">
-                                    <div
-                                        id="sendProgressBar"
-                                        class="progress-bar-inner"
-                                    ></div>
-                                </div>
-                                <div class="progress-text">
-                                    <span id="sendProgressPercent">0%</span>
-                                    <span id="sendSpeed">0 Mbps</span>
-                                </div>
-                                <div class="transfer-details">
-                                    <span id="sendETA">ETA: --:--</span>
-                                </div>
-                            </div>
-                        </div>
+        <!-- Transfer Section -->
+        <section class="transfer-section">
+            <div class="transfer-container">
+                <!-- Send Box -->
+                <div class="transfer-box">
+                    <div class="box-header">
+                        <h2><i class="fas fa-paper-plane text-primary"></i> Send Files</h2>
                     </div>
-
-                    <div class="transfer-box receive-box">
-                        <div class="box-header">
-                            <h2><i class="fas fa-download"></i> Receive Files</h2>
+                    <input type="file" id="fileInput" class="custom-file-input" data-file-name="">
+                    <button id="sendButton" class="btn btn-primary" disabled><i class="fas fa-paper-plane"></i> Send</button>
+                    <div id="sendStatusMessage" class="status-message info">Connected to server. Select a file to send.</div>
+                    
+                    <!-- Progress Bar for Send -->
+                    <div id="sendProgressContainer" class="progress-container hidden">
+                        <div class="progress-bar-outer">
+                            <div id="sendProgressBar" class="progress-bar-inner"></div>
                         </div>
-                        <div class="box-content">
-                            <input
-                                type="text"
-                                id="receiveCodeInput"
-                                placeholder="Enter 6-digit code"
-                                maxlength="6"
-                                class="text-input"
-                                inputmode="numeric"
-                                pattern="[0-9]*"
-                            />
-                            <button id="receiveButton" class="btn btn-primary">
-                                <i class="fas fa-download"></i> Receive File
-                            </button>
-                            <p
-                                id="receiveStatusMessage"
-                                class="status-message"
-                            ></p>
-
-                            <!-- Live Progress Display for Receiver -->
-                            <div
-                                id="receiveProgressContainer"
-                                class="progress-container hidden"
-                            >
-                                <div class="progress-bar-outer">
-                                    <div
-                                        id="receiveProgressBar"
-                                        class="progress-bar-inner"
-                                    ></div>
-                                </div>
-                                <div class="progress-text">
-                                    <span id="receiveProgressPercent">0%</span>
-                                    <span id="receiveSpeed">0 Mbps</span>
-                                </div>
-                                <div class="transfer-details">
-                                    <span id="receiveETA">ETA: --:--</span>
-                                </div>
-                            </div>
+                        <div class="progress-text">
+                            <span id="sendProgressPercent">0%</span>
+                            <span id="sendSpeed">0 Mbps</span>
+                        </div>
+                        <div class="transfer-details">
+                            <span id="sendETA">ETA: --:--</span>
                         </div>
                     </div>
                 </div>
-            </section>
-        </main>
 
-        <footer class="main-footer">
-            <div class="footer-content">
-                <p>&copy; 2024 FileShare. All rights reserved.</p>
-                <ul class="footer-links">
-                    <li><a href="#"><i class="fas fa-shield-alt"></i> <span>Privacy Policy</span></a></li>
-                    <li><a href="#"><i class="fas fa-file-contract"></i> <span>Terms of Service</span></a></li>
-                    <li><a href="#"><i class="fas fa-headset"></i> <span>Support</span></a></li>
-                </ul>
-            </div>
-        </footer>
-
-        <!-- Code Display Popup -->
-        <div id="codePopup" class="popup-overlay hidden">
-            <div class="popup-content">
-                <h2><i class="fas fa-key"></i> Your File Share Code</h2>
-                <p>Share this code with your friend to receive the file:</p>
-                <div class="code-display">
-                    <span id="displayCode"></span>
-                    <button id="copyCodeButton" class="btn btn-secondary">
-                        <i class="fas fa-copy"></i> Copy Code
-                    </button>
+                <!-- Receive Box -->
+                <div class="transfer-box">
+                    <div class="box-header">
+                        <h2><i class="fas fa-download text-primary"></i> Receive Files</h2>
+                    </div>
+                    <input type="text" id="receiveCodeInput" class="text-input" placeholder="Enter 6-digit code" maxlength="6" inputmode="numeric">
+                    <button id="receiveButton" class="btn btn-secondary"><i class="fas fa-download"></i> Receive</button>
+                    <div id="receiveStatusMessage" class="status-message info">Connected to server. Enter code to receive.</div>
+                    
+                    <!-- Progress Bar for Receive -->
+                    <div id="receiveProgressContainer" class="progress-container hidden">
+                        <div class="progress-bar-outer">
+                            <div id="receiveProgressBar" class="progress-bar-inner"></div>
+                        </div>
+                        <div class="progress-text">
+                            <span id="receiveProgressPercent">0%</span>
+                            <span id="receiveSpeed">0 Mbps</span>
+                        </div>
+                        <div class="transfer-details">
+                            <span id="receiveETA">ETA: --:--</span>
+                        </div>
+                    </div>
                 </div>
-                <p class="popup-info">
-                    The file will start downloading when your friend enters this
-                    code.
-                </p>
-                <button id="closePopupButton" class="btn btn-primary">
-                    <i class="fas fa-times"></i> Close
-                </button>
             </div>
+        </section>
+    </main>
+
+    <!-- Code Popup -->
+    <div id="codePopup" class="popup-overlay hidden">
+        <div class="popup-content">
+            <h2><i class="fas fa-key"></i> Your Transfer Code</h2>
+            <p>Share this code with the recipient to receive your file</p>
+            <div class="code-display">
+                <div id="displayCode"></div>
+                <button id="copyCodeButton" class="btn-secondary"><i class="fas fa-copy"></i> Copy Code</button>
+            </div>
+            <p class="popup-info">This code will expire in 10 minutes for security</p>
+            <button id="closePopupButton" class="btn btn-outline"><i class="fas fa-times"></i> Close</button>
         </div>
+    </div>
 
-        <script src="/socket.io/socket.io.js"></script>
-        <script src="script.js"></script>
-    </body>
+    <!-- Footer -->
+    <footer class="main-footer">
+        <div class="footer-content">
+            <p>© 2023 FileShare Pro. All rights reserved. Secure file transfer made simple.</p>
+            <ul class="footer-links">
+                <li><a href="#"><i class="fas fa-lock"></i> Privacy Policy</a></li>
+                <li><a href="#"><i class="fas fa-file-contract"></i> Terms of Service</a></li>
+                <li><a href="#"><i class="fas fa-shield-alt"></i> Security</a></li>
+                <li><a href="#"><i class="fas fa-headset"></i> Support</a></li>
+            </ul>
+        </div>
+    </footer>
+
+    <!-- Font Awesome for icons -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+    <!-- Socket.IO Client -->
+    <script src="/socket.io/socket.io.js"></script>
+    <!-- Main Application Script -->
+    <script src="script.js"></script>
+</body>
 </html>

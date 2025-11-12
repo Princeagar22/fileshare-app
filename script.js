@@ -57,17 +57,6 @@ document.addEventListener("DOMContentLoaded", () => {
       { urls: "stun:stun.stunprotocol.org:3478" },
       { urls: "stun:stun.voiparound.com" },
       { urls: "stun:stun.voipbuster.com" },
-      // Example of TURN servers - uncomment and add real credentials for production
-      // {
-      //   urls: 'turn:YOUR_TURN_SERVER_URL:PORT?transport=udp',
-      //   username: 'YOUR_USERNAME',
-      //   credential: 'YOUR_PASSWORD',
-      // },
-      // {
-      //   urls: 'turn:YOUR_TURN_SERVER_URL:PORT?transport=tcp',
-      //   username: 'YOUR_USERNAME',
-      //   credential: 'YOUR_PASSWORD',
-      // },
     ],
   };
 
@@ -131,7 +120,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     socket.on("webrtc_ice_candidate", async (data) => {
-      // console.log("Received ICE Candidate:", data);
       if (
         currentTransferCode === data.code &&
         peerConnection &&
@@ -158,9 +146,9 @@ document.addEventListener("DOMContentLoaded", () => {
           data.receiverSocketId,
         );
         dataChannel = peerConnection.createDataChannel("fileTransfer", {
-          ordered: true, // Ensure messages are delivered reliably and in order
-          maxRetransmits: null, // No limit on retransmissions for reliability
-          maxPacketLifeTime: null, // No time limit for packet delivery
+          ordered: true,
+          maxRetransmits: null,
+          maxPacketLifeTime: null,
         });
         setupDataChannelEvents(dataChannel, data.code); // Setup sender's data channel events
 
@@ -198,7 +186,6 @@ document.addEventListener("DOMContentLoaded", () => {
       peerConnection = null;
     }
 
-    // Enhanced configuration for better performance
     const pc = new RTCPeerConnection({
       ...iceServers,
       bundlePolicy: 'max-bundle',
@@ -208,7 +195,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     pc.onicecandidate = (event) => {
       if (event.candidate) {
-        // console.log("Sending ICE candidate:", event.candidate);
         socket.emit("webrtc_ice_candidate", {
           code: code,
           candidate: event.candidate,
@@ -249,16 +235,13 @@ document.addEventListener("DOMContentLoaded", () => {
     pc.ondatachannel = (event) => {
       console.log("Received Data Channel:", event);
       if (!isInitiator) {
-        // Receiver receives the data channel
         dataChannel = event.channel;
-        // Optimize data channel for high throughput
         dataChannel.binaryType = "arraybuffer";
         setupDataChannelEvents(dataChannel, code);
       }
     };
 
     pc.onnegotiationneeded = async () => {
-      // This event fires on the initiator (sender in our case)
       if (isInitiator && peerConnection && peerConnection.signalingState === "stable") {
         try {
           const offer = await pc.createOffer({
@@ -269,7 +252,7 @@ document.addEventListener("DOMContentLoaded", () => {
           socket.emit("webrtc_offer", {
             code: code,
             offer: pc.localDescription,
-            targetSocketId: targetSocketId, // Ensure we send to the correct receiver
+            targetSocketId: targetSocketId,
           });
         } catch (e) {
           console.error("Error on negotiationneeded:", e);
@@ -282,7 +265,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // --- Data Channel Event Handlers ---
   function setupDataChannelEvents(channel, code) {
-    // Optimize data channel for maximum throughput
     channel.binaryType = "arraybuffer";
     
     channel.onopen = () => {
@@ -294,7 +276,9 @@ document.addEventListener("DOMContentLoaded", () => {
         showProgressDisplay(sendProgressContainer);
         showNotification("Data channel open! Starting file transfer...", "info");
         // Start sending file immediately when data channel opens
-        sendFileOverDataChannel(fileToSend, channel, code);
+        setTimeout(() => {
+          sendFileOverDataChannel(fileToSend, channel, code);
+        }, 100);
       } else {
         receiveStatusMessage.textContent =
           "Data channel open! Ready to receive file.";
@@ -306,10 +290,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     channel.onclose = () => {
       console.log("Data channel closed.");
-      // This might fire multiple times or on normal completion.
-      // Finalize logic should primarily be in the 'complete' message handler.
       if (isSender && bytesSent < fileToSend.size) {
-        // Check if sender didn't finish
         updateOverallStatus(
           "Sender: Data channel closed before transfer complete.",
           "warning",
@@ -317,7 +298,6 @@ document.addEventListener("DOMContentLoaded", () => {
         resetAllTransferStates();
         showNotification("Data channel closed before transfer complete", "warning");
       } else if (!isSender && receivedBytes < fileMetadata.fileSize) {
-        // Check if receiver didn't finish
         updateOverallStatus(
           "Receiver: Data channel closed before transfer complete.",
           "warning",
@@ -363,7 +343,7 @@ document.addEventListener("DOMContentLoaded", () => {
       fileName: file.name,
       fileSize: file.size,
       fileType: file.type,
-      code: code, // Include code for receiver context
+      code: code,
     };
     
     try {
@@ -381,7 +361,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const fileReader = new FileReader();
 
     fileReader.onload = (event) => {
-      const chunk = event.target.result; // ArrayBuffer
+      const chunk = event.target.result;
       if (channel.readyState === "open") {
         try {
           channel.send(chunk);
@@ -390,14 +370,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
           readOffset += chunk.byteLength;
           if (readOffset < file.size) {
-            // Use setImmediate for better performance instead of setTimeout
-            setImmediate(readNextChunk);
+            setTimeout(readNextChunk, 0);
           } else {
             console.log("File sending complete!");
             sendStatusMessage.textContent = `File "${file.name}" sent successfully!`;
             updateStatusMessage(sendStatusMessage, "success");
             showNotification(`File "${file.name}" sent successfully!`, "success");
-            // Optionally send a "transfer_complete" message to receiver via data channel
             try {
               channel.send(JSON.stringify({ type: "complete", code: code }));
             } catch (e) {
@@ -436,7 +414,7 @@ document.addEventListener("DOMContentLoaded", () => {
       fileReader.readAsArrayBuffer(slice);
     }
 
-    readNextChunk(); // Start reading the first chunk
+    readNextChunk();
   }
 
   function updateSenderProgress(fileSize, code) {
@@ -449,7 +427,7 @@ document.addEventListener("DOMContentLoaded", () => {
         (bytesSentThisInterval * 8) /
         (elapsedTimeSinceLastUpdate * 1024 * 1024);
     } else {
-      sendSpeedMbps = 0; // Avoid division by zero
+      sendSpeedMbps = 0;
     }
 
     const percentage = Math.min(100, (bytesSent / fileSize) * 100).toFixed(2);
@@ -498,8 +476,8 @@ document.addEventListener("DOMContentLoaded", () => {
           receiveStatusMessage.textContent = `Receiving "${fileMetadata.fileName}"...`;
           updateStatusMessage(receiveStatusMessage, "info");
           showNotification(`Receiving "${fileMetadata.fileName}"...`, "info");
-          receivedBytes = 0; // Reset for new transfer
-          receivedChunks.length = 0; // Clear previous chunks
+          receivedBytes = 0;
+          receivedChunks.length = 0;
           downloadStartTime = Date.now();
           lastReceivedBytes = 0;
           lastReceiveTime = Date.now();
@@ -509,15 +487,12 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       } catch (e) {
         console.warn("Received non-JSON string message:", data, e);
-        // Treat as a chunk if parsing failed but we are expecting file data
         if (fileMetadata && data.length < 1000) {
-          // Simple heuristic: if it's a short string, might be a malformed chunk
-          processFileChunk(data, code); // Try to process as chunk
+          processFileChunk(data, code);
         } else if (fileMetadata) {
           console.warn(
             "Received large string as data after metadata, might be corrupted chunk.",
           );
-          // Potentially handle as error or discard
         }
       }
     } else if (data instanceof ArrayBuffer) {
@@ -539,7 +514,6 @@ document.addEventListener("DOMContentLoaded", () => {
       console.log(
         "All chunks received based on file size. Waiting for completion message.",
       );
-      // The 'complete' message from sender will trigger finalizeReceivedFile
     }
   }
 
@@ -608,7 +582,6 @@ document.addEventListener("DOMContentLoaded", () => {
       console.warn(
         "Received complete message, but total bytes received less than expected. Data might be incomplete.",
       );
-      // Attempt to download what was received anyway
     }
 
     const receivedBlob = new Blob(receivedChunks, {
@@ -626,7 +599,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     receiveStatusMessage.textContent = `File "${fileMetadata.fileName}" downloaded successfully!`;
     updateStatusMessage(receiveStatusMessage, "success");
-    updateReceiverProgress(fileMetadata.fileSize, code); // Final 100% update
+    updateReceiverProgress(fileMetadata.fileSize, code);
     showNotification(`File "${fileMetadata.fileName}" downloaded successfully!`, "success");
     resetAllTransferStates();
   }
@@ -665,7 +638,6 @@ document.addEventListener("DOMContentLoaded", () => {
     speedDisplay.textContent = `${data.speed} Mbps`;
     etaDisplay.textContent = `ETA: ${data.eta}`;
 
-    // Ensure status message is not showing an error color during active transfer
     const statusMessageElement = progressBar
       .closest(".transfer-box")
       .querySelector(".status-message");
@@ -682,9 +654,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function updateStatusMessage(element, type) {
-    // Remove all status classes
     element.classList.remove("error", "success", "info", "warning");
-    // Add the appropriate class
     element.classList.add(type);
   }
 
@@ -702,7 +672,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Notification system
   function showNotification(message, type) {
-    // Create notification element
     const notification = document.createElement("div");
     notification.className = `notification notification-${type}`;
     notification.innerHTML = `
@@ -710,15 +679,12 @@ document.addEventListener("DOMContentLoaded", () => {
       <span>${message}</span>
     `;
     
-    // Add to body
     document.body.appendChild(notification);
     
-    // Show notification
     setTimeout(() => {
       notification.classList.add("show");
     }, 10);
     
-    // Remove after 3 seconds
     setTimeout(() => {
       notification.classList.remove("show");
       setTimeout(() => {
@@ -764,16 +730,14 @@ document.addEventListener("DOMContentLoaded", () => {
       "Connected to server. Enter code to receive.";
     updateStatusMessage(receiveStatusMessage, "info");
 
-    fileInput.value = ""; // Clear file input
-    fileInput.setAttribute("data-file-name", ""); // Clear custom display
-    sendButton.disabled = true; // Disable send button until file is chosen
-    receiveCodeInput.value = ""; // Clear receive input
-    receiveButton.disabled = false; // Enable receive button
+    fileInput.value = "";
+    fileInput.setAttribute("data-file-name", "");
+    sendButton.disabled = true;
+    receiveCodeInput.value = "";
+    receiveButton.disabled = false;
   }
 
   // --- Event Listeners ---
-
-  // Custom file input display logic
   fileInput.addEventListener("change", function () {
     fileToSend = this.files[0];
     if (fileToSend) {
@@ -781,12 +745,12 @@ document.addEventListener("DOMContentLoaded", () => {
       this.setAttribute("data-file-name", fileName);
       sendStatusMessage.textContent = `File selected: ${fileName}`;
       updateStatusMessage(sendStatusMessage, "info");
-      sendButton.disabled = false; // Enable send button
+      sendButton.disabled = false;
     } else {
       this.setAttribute("data-file-name", "");
       sendStatusMessage.textContent = "Please select a file.";
       updateStatusMessage(sendStatusMessage, "error");
-      sendButton.disabled = true; // Disable send button
+      sendButton.disabled = true;
     }
     resetProgressDisplay(sendProgressContainer);
   });
@@ -806,7 +770,7 @@ document.addEventListener("DOMContentLoaded", () => {
         "error",
       );
       showNotification("Connection lost. Please refresh and try again.", "error");
-      initializeSocket(); // Try to reconnect
+      initializeSocket();
       return;
     }
 
@@ -815,9 +779,8 @@ document.addEventListener("DOMContentLoaded", () => {
     updateStatusMessage(sendStatusMessage, "info");
     hideCodePopup();
     resetProgressDisplay(sendProgressContainer);
-    sendButton.disabled = true; // Disable button during process
+    sendButton.disabled = true;
 
-    // Request a code from the server
     socket.emit("register_sender", (response) => {
       if (response.code) {
         currentTransferCode = response.code;
@@ -826,22 +789,20 @@ document.addEventListener("DOMContentLoaded", () => {
         updateStatusMessage(sendStatusMessage, "success");
         showNotification(`Share code ${currentTransferCode} with your friend`, "info");
 
-        // Store file metadata for signaling server (not sending file data here)
         fileMetadata = {
-          // Store it locally too
           fileName: fileToSend.name,
           fileSize: fileToSend.size,
           fileType: fileToSend.type,
           code: currentTransferCode,
         };
-        socket.emit("sender_file_metadata", fileMetadata); // Inform server about metadata
+        socket.emit("sender_file_metadata", fileMetadata);
       } else {
         sendStatusMessage.textContent = `Error generating code: ${response.error || "Unknown error"}`;
         updateStatusMessage(sendStatusMessage, "error");
         showNotification(`Error generating code: ${response.error || "Unknown error"}`, "error");
         resetAllTransferStates();
       }
-      sendButton.disabled = false; // Re-enable if not waiting
+      sendButton.disabled = false;
     });
   });
 
@@ -856,7 +817,6 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    // Validate that code is numeric and 6 digits
     if (!/^\d{6}$/.test(code)) {
       receiveStatusMessage.textContent = "Please enter a valid 6-digit code.";
       updateStatusMessage(receiveStatusMessage, "error");
@@ -870,23 +830,22 @@ document.addEventListener("DOMContentLoaded", () => {
         "error",
       );
       showNotification("Connection lost. Please refresh and try again.", "error");
-      initializeSocket(); // Try to reconnect
+      initializeSocket();
       return;
     }
 
     isSender = false;
-    currentTransferCode = code; // Set active code for receiver
+    currentTransferCode = code;
     receiveStatusMessage.textContent = `Joining code "${code}"...`;
     updateStatusMessage(receiveStatusMessage, "info");
     resetProgressDisplay(receiveProgressContainer);
-    receiveButton.disabled = true; // Disable button during process
+    receiveButton.disabled = true;
 
     socket.emit("register_receiver", code, (response) => {
       if (response.success) {
         console.log("Joined as receiver. Response:", response);
-        fileMetadata = response.fileMetadata; // Store metadata
+        fileMetadata = response.fileMetadata;
         if (response.message) {
-          // If there's a message, show it (e.g., "Waiting for sender to connect...")
           receiveStatusMessage.textContent = response.message;
           updateStatusMessage(receiveStatusMessage, "info");
           showNotification(response.message, "info");
@@ -901,13 +860,12 @@ document.addEventListener("DOMContentLoaded", () => {
           showNotification("Code accepted. Waiting for sender to connect...", "info");
         }
         
-        // Only create peer connection if sender is already connected
         if (response.senderSocketId) {
           peerConnection = createPeerConnection(
             code,
             false,
             response.senderSocketId,
-          ); // Create PC for receiver
+          );
         }
       } else {
         receiveStatusMessage.textContent = `Error: ${response.message || "Invalid or expired code."}`;
@@ -915,7 +873,7 @@ document.addEventListener("DOMContentLoaded", () => {
         showNotification(`Error: ${response.message || "Invalid or expired code."}`, "error");
         resetAllTransferStates();
       }
-      receiveButton.disabled = false; // Re-enable if not waiting
+      receiveButton.disabled = false;
     });
   });
 
@@ -925,7 +883,6 @@ document.addEventListener("DOMContentLoaded", () => {
     navigator.clipboard
       .writeText(codeToCopy)
       .then(() => {
-        // Show visual feedback
         const originalText = copyCodeButton.innerHTML;
         copyCodeButton.innerHTML = '<i class="fas fa-check"></i> Copied!';
         setTimeout(() => {
@@ -942,24 +899,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
   closePopupButton.addEventListener("click", hideCodePopup);
 
-  // Close popup if clicked outside
   codePopup.addEventListener("click", (e) => {
     if (e.target === codePopup) {
       hideCodePopup();
     }
   });
 
-  // Add notification container to body
   const notificationContainer = document.createElement("div");
   notificationContainer.className = "notification-container";
   document.body.appendChild(notificationContainer);
 
-  // Initial setup
   initializeSocket();
-  sendButton.disabled = true; // Initially disable send button until file is chosen
+  sendButton.disabled = true;
 });
 
-// Polyfill for setImmediate if not available
 if (typeof window.setImmediate === 'undefined') {
   window.setImmediate = function(callback) {
     return setTimeout(callback, 0);

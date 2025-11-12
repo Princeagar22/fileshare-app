@@ -177,14 +177,14 @@ io.on("connection", (socket) => {
         fileMetadata: room.fileMetadata, // Send metadata to sender too, if needed
       });
       
-      // Also send a confirmation to the receiver that connection is being established
+      // Send success response to receiver
       callback({
         success: true,
         fileMetadata: room.fileMetadata, // Receiver needs to know file details
         senderSocketId: room.senderSocketId,
       });
     } else {
-      // If sender is not connected, still send success but with warning
+      // Send success response to receiver even if sender is not connected yet
       callback({
         success: true,
         fileMetadata: room.fileMetadata,

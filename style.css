@@ -23,16 +23,17 @@
 
 /* General Body and Typography */
 body {
-    font-family: 'Poppins', sans-serif;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    background: linear-gradient(135deg, #f0f4f8, #e2e8f0);
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: var(--dark);
     line-height: 1.6;
     min-height: 100vh;
     display: flex;
     flex-direction: column;
+    background-attachment: fixed;
 }
 
 /* Base Link Styles */
@@ -72,6 +73,10 @@ a {
 .logo i {
     margin-right: 10px;
     color: var(--secondary);
+    background: linear-gradient(45deg, var(--primary), var(--secondary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 
 .logo span {
@@ -143,29 +148,30 @@ a {
     justify-content: center;
     gap: 8px;
     min-width: 120px;
+    box-shadow: 0 4px 6px rgba(50, 50, 93, 0.11), 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .btn-primary {
     background: linear-gradient(45deg, var(--primary), var(--secondary));
     color: white;
-    box-shadow: var(--shadow);
+    box-shadow: 0 4px 15px rgba(67, 97, 238, 0.3);
 }
 
 .btn-primary:hover {
     background: linear-gradient(45deg, var(--primary-dark), #651fa0);
-    box-shadow: var(--shadow-lg);
+    box-shadow: 0 7px 14px rgba(50, 50, 93, 0.1), 0 3px 6px rgba(0, 0, 0, 0.08);
     transform: translateY(-2px);
 }
 
 .btn-secondary {
     background-color: var(--gray-light);
     color: var(--dark);
-    box-shadow: var(--shadow);
+    box-shadow: 0 4px 6px rgba(50, 50, 93, 0.11), 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .btn-secondary:hover {
     background-color: #d1d5db;
-    box-shadow: var(--shadow-lg);
+    box-shadow: 0 7px 14px rgba(50, 50, 93, 0.1), 0 3px 6px rgba(0, 0, 0, 0.08);
     transform: translateY(-2px);
 }
 
@@ -178,7 +184,7 @@ a {
 .btn-outline:hover {
     background-color: var(--primary);
     color: white;
-    box-shadow: var(--shadow);
+    box-shadow: 0 4px 15px rgba(67, 97, 238, 0.3);
     transform: translateY(-2px);
 }
 
@@ -214,18 +220,15 @@ a {
 .hero-section h1 {
     font-size: 56px;
     font-weight: 700;
-    color: var(--dark);
+    color: white;
     margin-bottom: 25px;
     line-height: 1.2;
-    background: linear-gradient(45deg, var(--primary), var(--secondary));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .hero-section p {
     font-size: 22px;
-    color: var(--gray-dark);
+    color: rgba(255, 255, 255, 0.9);
     max-width: 750px;
     margin: 0 auto;
 }
@@ -263,7 +266,7 @@ a {
 
 .transfer-box:hover {
     transform: translateY(-5px);
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
 }
 
 .box-header {
@@ -336,12 +339,12 @@ input[type="file"]:focus,
     right: 0;
     bottom: 0;
     transition: var(--transition);
-    box-shadow: var(--shadow);
+    box-shadow: 0 4px 6px rgba(50, 50, 93, 0.11), 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .custom-file-input:hover::before {
     background: linear-gradient(45deg, var(--primary-dark), #651fa0);
-    box-shadow: var(--shadow-lg);
+    box-shadow: 0 7px 14px rgba(50, 50, 93, 0.1), 0 3px 6px rgba(0, 0, 0, 0.08);
 }
 
 .custom-file-input:active::before {
@@ -584,12 +587,12 @@ input[type="file"]:focus,
     font-size: 16px;
     background: linear-gradient(45deg, var(--success), #22c55e);
     color: white;
-    box-shadow: var(--shadow);
+    box-shadow: 0 4px 6px rgba(50, 50, 93, 0.11), 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .code-display .btn-secondary:hover {
     background: linear-gradient(45deg, #22c55e, #16a34a);
-    box-shadow: var(--shadow-lg);
+    box-shadow: 0 7px 14px rgba(50, 50, 93, 0.1), 0 3px 6px rgba(0, 0, 0, 0.08);
 }
 
 .popup-info {
@@ -909,62 +912,6 @@ input[type="file"]:focus,
     
     .notification i {
         font-size: 16px;
-    }
-}
-
-@media (max-width: 480px) {
-    .navbar {
-        padding: 0 10px;
-    }
-    
-    .logo {
-        font-size: 20px;
-    }
-    
-    .nav-links li {
-        margin: 0 5px;
-    }
-    
-    .nav-links a span {
-        display: none;
-    }
-    
-    .nav-links a i {
-        margin-right: 0;
-    }
-    
-    .hero-section h1 {
-        font-size: 28px;
-    }
-    
-    .hero-section p {
-        font-size: 14px;
-    }
-    
-    .box-header h2 {
-        font-size: 22px;
-    }
-    
-    .btn {
-        padding: 6px 12px;
-        font-size: 12px;
-        min-width: 80px;
-    }
-    
-    .code-display #displayCode {
-        font-size: 20px;
-        letter-spacing: 1px;
-        padding: 8px 15px;
-    }
-    
-    .notification {
-        max-width: 180px;
-        padding: 8px 10px;
-        font-size: 12px;
-    }
-    
-    .notification i {
-        font-size: 14px;
     }
     
     .transfer-box {
