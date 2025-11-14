@@ -1,376 +1,144 @@
-const express = require("express");
-const http = require("http");
-const { Server } = require("socket.io");
-const { randomInt } = require("crypto");
+const express = require('express');
+const multer = require('multer');
+const { v4: uuidv4 } = require('uuid');
+const path = require('path');
+const fs = require('fs');
 
 const app = express();
-const server = http.createServer(app);
-
-// Enhanced Socket.IO configuration for better performance
-const io = new Server(server, {
-  cors: {
-    origin: "*", // Allow all origins for development
-    methods: ["GET", "POST"],
-  },
-  transports: ['websocket', 'polling'], // Prefer websocket but fallback to polling
-  allowEIO3: true, // Allow Engine.IO v3 clients
-  pingInterval: 25000, // Increase ping interval to reduce overhead
-  pingTimeout: 30000, // Increase ping timeout
-  upgradeTimeout: 30000, // Increase upgrade timeout
-  maxHttpBufferSize: 1e8, // Increase buffer size to 100MB for large metadata
-});
-
 const PORT = process.env.PORT || 3000;
 
-// In-memory store for active transfer rooms
-// This maps a generated code to the sender's socket ID and potentially the receiver's socket ID
-// For a production app, use a persistent store (e.g., Redis) and add expiration logic.
-const transferRooms = {}; // code -> { senderSocketId: string, receiverSocketId: string | null, fileMetadata: object | null, lastActivity: number }
-
-function closeRoom(code, message, options = {}) {
-  const room = transferRooms[code];
-  if (!room) {
-    return;
-  }
-
-  const { notifySender = true, notifyReceiver = true } = options;
-
-  if (message) {
-    const payload = { code, message };
-    if (
-      notifySender &&
-      room.senderSocketId &&
-      io.sockets.sockets.has(room.senderSocketId)
-    ) {
-      io.to(room.senderSocketId).emit("transfer_interrupted", payload);
-    }
-    if (
-      notifyReceiver &&
-      room.receiverSocketId &&
-      io.sockets.sockets.has(room.receiverSocketId)
-    ) {
-      io.to(room.receiverSocketId).emit("transfer_interrupted", payload);
-    }
-  }
-
-  delete transferRooms[code];
+// Create uploads directory if it doesn't exist
+const uploadDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir);
 }
 
-function updateRoomActivity(code) {
-  if (transferRooms[code]) {
-    transferRooms[code].lastActivity = Date.now();
+// Store file information in memory (in production, use a database)
+const fileStore = new Map();
+
+// Configure multer for file uploads with larger limits
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/');
+  },
+  filename: function (req, file, cb) {
+    // Generate unique filename to prevent conflicts
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
   }
-}
+});
 
-// Function to generate 6-digit numeric code
-function generateNumericCode() {
-  return randomInt(100000, 1000000).toString();
-}
+// Increase file size limits (500MB)
+const upload = multer({ 
+  storage: storage,
+  limits: {
+    fileSize: 500 * 1024 * 1024 // 500MB limit
+  }
+});
 
-// Serve static files (your frontend)
-app.use(express.static(__dirname));
+// Serve static files from public directory
+app.use(express.static('public'));
+app.use('/download', express.static('uploads'));
 
-// Middleware to parse JSON bodies with increased limit for large metadata
-app.use(express.json({ limit: '50mb' }));
+// Middleware to parse JSON
+app.use(express.json());
 
-// --- Socket.IO Logic ---
+// Routes
 
-io.on("connection", (socket) => {
-  console.log(`User connected: ${socket.id}`);
-  socket.emit("connected", { message: "Connected to signaling server." }); // Confirm connection to client
+// Home page - file upload form
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
-  socket.on("disconnect", () => {
-    console.log(`User disconnected: ${socket.id}`);
-    // Clean up any rooms where this socket was a sender or receiver
-    for (const code in transferRooms) {
-      const room = transferRooms[code];
-      if (room.senderSocketId === socket.id) {
-        console.log(`Sender ${socket.id} disconnected. Deleting room ${code}.`);
-        closeRoom(code, "Sender disconnected. Transfer cannot proceed.");
-      } else if (room.receiverSocketId === socket.id) {
-        console.log(`Receiver ${socket.id} disconnected from room ${code}.`);
-        room.receiverSocketId = null; // Mark receiver as disconnected, sender can wait for new receiver
-        // Notify sender if connected
-        if (
-          room.senderSocketId &&
-          io.sockets.sockets.has(room.senderSocketId)
-        ) {
-          io.to(room.senderSocketId).emit("transfer_interrupted", {
-            code: code,
-            message: "Receiver disconnected. Waiting for a new receiver...",
-          });
-        }
-      }
-    }
+// Upload file endpoint
+app.post('/upload', upload.single('file'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No file uploaded' });
+  }
+
+  // Generate a unique code for this file
+  const code = uuidv4().substring(0, 8).toUpperCase();
+  
+  // Store file information
+  fileStore.set(code, {
+    filename: req.file.filename,
+    originalName: req.file.originalname,
+    path: req.file.path,
+    size: req.file.size,
+    mimetype: req.file.mimetype,
+    uploadTime: new Date(),
+    downloadCount: 0 // Track downloads
   });
 
-  // Sender registers to get a unique code
-  socket.on("register_sender", (callback) => {
-    // Ensure the sender doesn't hold stale rooms
-    for (const code in transferRooms) {
-      if (transferRooms[code].senderSocketId === socket.id) {
-        console.log(`Sender ${socket.id} already had room ${code}. Closing it before generating a new code.`);
-        closeRoom(
-          code,
-          "Previous transfer session closed. A new code was generated.",
-          { notifySender: false },
-        );
-      }
-    }
-
-    // Generate a unique numeric code
-    let code;
-    let attempts = 0;
-    do {
-      code = generateNumericCode();
-      attempts++;
-      // Prevent infinite loop in case of collision (very unlikely with 6 digits)
-      if (attempts > 100) {
-        return callback({ error: "Unable to generate unique code" });
-      }
-    } while (transferRooms[code]);
-    
-    transferRooms[code] = {
-      senderSocketId: socket.id,
-      receiverSocketId: null,
-      fileMetadata: null, // Will be set by sender later when file is selected
-      lastActivity: Date.now(),
-    };
-    console.log(`Sender ${socket.id} registered. Code: ${code}`);
-    callback({ code: code }); // Send code back to sender
-  });
-
-  // Sender provides file metadata after selecting a file
-  socket.on("sender_file_metadata", (data) => {
-    const { code, fileName, fileSize, fileType } = data;
-    const room = transferRooms[code];
-    if (room && room.senderSocketId === socket.id) {
-      room.fileMetadata = { fileName, fileSize, fileType };
-      updateRoomActivity(code);
-      console.log(
-        `Sender ${socket.id} provided metadata for ${code}: ${fileName}, ${fileSize} bytes`,
-      );
-      // If a receiver is already waiting, notify them about the file metadata
-      if (
-        room.receiverSocketId &&
-        io.sockets.sockets.has(room.receiverSocketId)
-      ) {
-        io.to(room.receiverSocketId).emit("sender_ready_with_metadata", {
-          code: code,
-          fileMetadata: room.fileMetadata,
-          senderSocketId: room.senderSocketId,
-        });
-      }
-    } else {
-      console.warn(
-        `Sender ${socket.id} tried to set metadata for invalid/unregistered code ${code}`,
-      );
-      socket.emit("transfer_error", {
-        code: code,
-        message: "Failed to set file metadata: Invalid or expired code.",
-      });
-    }
-  });
-
-  // Receiver joins with a code
-  socket.on("register_receiver", (code, callback) => {
-    const room = transferRooms[code];
-    if (!room) {
-      console.log(
-        `Receiver ${socket.id} tried to join non-existent code: ${code}`,
-      );
-      return callback({ success: false, message: "Invalid or expired code." });
-    }
-    if (!io.sockets.sockets.has(room.senderSocketId)) {
-      console.log(`Receiver ${socket.id} tried to join code ${code}, but sender is no longer connected.`);
-      closeRoom(code, "Sender disconnected. Please ask them to generate a new code.");
-      return callback({
-        success: false,
-        message: "Sender disconnected. Ask them to generate a fresh code.",
-      });
-    }
-    if (room.receiverSocketId) {
-      console.log(
-        `Receiver ${socket.id} tried to join code ${code}, but a receiver is already present.`,
-      );
-      return callback({
-        success: false,
-        message: "Another receiver is already connected to this code.",
-      });
-    }
-    if (room.senderSocketId === socket.id) {
-      console.log(`Receiver ${socket.id} tried to join own code ${code}.`);
-      return callback({
-        success: false,
-        message: "Cannot receive from yourself. Share the code with a friend.",
-      });
-    }
-
-    room.receiverSocketId = socket.id;
-    updateRoomActivity(code);
-    console.log(
-      `Receiver ${socket.id} joined code: ${code}. Notifying sender ${room.senderSocketId}.`,
-    );
-
-    // Notify sender that a receiver has joined
-    if (io.sockets.sockets.has(room.senderSocketId)) {
-      io.to(room.senderSocketId).emit("receiver_joined", {
-        code: code,
-        receiverSocketId: socket.id,
-        fileMetadata: room.fileMetadata, // Send metadata to sender too, if needed
-      });
-      
-      // Send success response to receiver
-      callback({
-        success: true,
-        fileMetadata: room.fileMetadata, // Receiver needs to know file details
-        senderSocketId: room.senderSocketId,
-      });
-    } else {
-      // Send success response to receiver even if sender is not connected yet
-      callback({
-        success: true,
-        fileMetadata: room.fileMetadata,
-        senderSocketId: room.senderSocketId,
-        message: "Code accepted. Waiting for sender to connect...",
-      });
-    }
-  });
-
-  // --- WebRTC Signaling ---
-  // These events simply relay messages between sender and receiver
-
-  socket.on("webrtc_offer", (data) => {
-    const { code, offer, targetSocketId } = data;
-    const room = transferRooms[code];
-    if (
-      room &&
-      room.senderSocketId === socket.id &&
-      room.receiverSocketId === targetSocketId
-    ) {
-      console.log(
-        `Relaying offer from sender ${socket.id} to receiver ${room.receiverSocketId} for code ${code}`,
-      );
-      updateRoomActivity(code);
-      io.to(room.receiverSocketId).emit("webrtc_offer", {
-        code: code,
-        senderSocketId: socket.id, // Receiver needs to know who sent the offer
-        offer: offer,
-      });
-    } else {
-      console.warn(
-        `Could not relay offer for code ${code} from ${socket.id}. Room or receiver not found, or target mismatch.`,
-      );
-      socket.emit("transfer_error", {
-        code: code,
-        message:
-          "Failed to relay offer: Receiver not connected or room expired.",
-      });
-    }
-  });
-
-  socket.on("webrtc_answer", (data) => {
-    const { code, answer, targetSocketId } = data;
-    const room = transferRooms[code];
-    if (
-      room &&
-      room.receiverSocketId === socket.id &&
-      room.senderSocketId === targetSocketId
-    ) {
-      console.log(
-        `Relaying answer from receiver ${socket.id} to sender ${room.senderSocketId} for code ${code}`,
-      );
-      updateRoomActivity(code);
-      io.to(room.senderSocketId).emit("webrtc_answer", {
-        code: code,
-        receiverSocketId: socket.id, // Sender needs to know who sent the answer
-        answer: answer,
-      });
-    } else {
-      console.warn(
-        `Could not relay answer for code ${code} from ${socket.id}. Room or sender not found, or target mismatch.`,
-      );
-      socket.emit("transfer_error", {
-        code: code,
-        message:
-          "Failed to relay answer: Sender not connected or room expired.",
-      });
-    }
-  });
-
-  socket.on("webrtc_ice_candidate", (data) => {
-    const { code, candidate, targetSocketId } = data;
-    const room = transferRooms[code];
-    if (room) {
-      updateRoomActivity(code);
-      // Relay to the other peer in the room
-      if (
-        room.senderSocketId === socket.id &&
-        room.receiverSocketId === targetSocketId &&
-        io.sockets.sockets.has(targetSocketId)
-      ) {
-        // console.log(`Relaying ICE candidate from sender ${socket.id} to receiver ${targetSocketId} for code ${code}`);
-        io.to(targetSocketId).emit("webrtc_ice_candidate", {
-          code: code,
-          candidate: candidate,
-        });
-      } else if (
-        room.receiverSocketId === socket.id &&
-        room.senderSocketId === targetSocketId &&
-        io.sockets.sockets.has(targetSocketId)
-      ) {
-        // console.log(`Relaying ICE candidate from receiver ${socket.id} to sender ${targetSocketId} for code ${code}`);
-        io.to(targetSocketId).emit("webrtc_ice_candidate", {
-          code: code,
-          candidate: candidate,
-        });
-      } else {
-        console.warn(
-          `Could not relay ICE candidate for code ${code} from ${socket.id} to target ${targetSocketId}. Target not found in room or not connected.`,
-        );
-      }
-    } else {
-      console.warn(
-        `Could not relay ICE candidate for code ${code}. Room not found.`,
-      );
-      socket.emit("transfer_error", {
-        code: code,
-        message: "Failed to relay ICE candidate: Room expired.",
-      });
-    }
+  // Return the code to the user
+  res.json({ 
+    success: true, 
+    code: code,
+    message: 'File uploaded successfully! Share the code with the recipient.'
   });
 });
 
-// --- Cleanup Logic (for in-memory transferRooms) ---
-const ROOM_CLEANUP_INTERVAL = 5 * 60 * 1000; // 5 minutes in milliseconds
-const ROOM_INACTIVITY_TIMEOUT = 10 * 60 * 1000; // 10 minutes of inactivity
+// Download page
+app.get('/download/:code', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'download.html'));
+});
 
-setInterval(() => {
-  const now = Date.now();
-  for (const code in transferRooms) {
-    const room = transferRooms[code];
-    // Clean up if sender disconnected, or room is inactive for too long
-    const isSenderConnected = io.sockets.sockets.has(room.senderSocketId);
-    const isReceiverConnected =
-      room.receiverSocketId && io.sockets.sockets.has(room.receiverSocketId);
-
-    const inactiveTooLong =
-      now - room.lastActivity > ROOM_INACTIVITY_TIMEOUT &&
-      !isReceiverConnected;
-
-    if (!isSenderConnected) {
-      console.log(`Cleaning up room ${code}: sender disconnected.`);
-      closeRoom(
-        code,
-        "Sender disconnected. Please ask them to generate a new transfer code.",
-      );
-    } else if (inactiveTooLong) {
-      console.log(`Cleaning up inactive room: ${code}`);
-      closeRoom(code, "Transfer room expired due to inactivity.");
-    }
+// Get file info by code
+app.get('/api/file/:code', (req, res) => {
+  const code = req.params.code.toUpperCase();
+  const fileInfo = fileStore.get(code);
+  
+  if (!fileInfo) {
+    return res.status(404).json({ error: 'File not found or code expired' });
   }
-}, ROOM_CLEANUP_INTERVAL);
+  
+  res.json({
+    code: code,
+    originalName: fileInfo.originalName,
+    size: fileInfo.size,
+    uploadTime: fileInfo.uploadTime,
+    downloadCount: fileInfo.downloadCount
+  });
+});
 
-server.listen(PORT, () => {
-  console.log(`Signaling server is running on http://localhost:${PORT}`);
+// Download file by code
+app.get('/api/download/:code', (req, res) => {
+  const code = req.params.code.toUpperCase();
+  const fileInfo = fileStore.get(code);
+  
+  if (!fileInfo) {
+    return res.status(404).json({ error: 'File not found or code expired' });
+  }
+  
+  // Increment download counter
+  fileInfo.downloadCount += 1;
+  
+  // Set headers for file download
+  res.setHeader('Content-Disposition', `attachment; filename="${fileInfo.originalName}"`);
+  res.setHeader('Content-Type', fileInfo.mimetype);
+  
+  // Stream file for better performance with large files
+  const fileStream = fs.createReadStream(fileInfo.path);
+  fileStream.pipe(res);
+  
+  // Handle stream events
+  fileStream.on('error', (err) => {
+    console.error('File stream error:', err);
+    res.status(500).json({ error: 'Error streaming file' });
+  });
+  
+  fileStream.on('end', () => {
+    console.log(`File ${fileInfo.originalName} downloaded successfully`);
+  });
+});
+
+// Health check endpoint for load balancer
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'OK', timestamp: new Date() });
+});
+
+// Start server
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server is running on port ${PORT}`);
+  console.log(`Visit http://localhost:${PORT} to access the file sharing app`);
 });

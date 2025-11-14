@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Send Anywhere - File Sharing</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Send Anywhere</h1>
+            <p>Share files securely with anyone</p>
+        </header>
+
+        <main>
+            <section class="upload-section">
+                <h2>Upload a File</h2>
+                <form id="uploadForm" enctype="multipart/form-data">
+                    <div class="file-input-wrapper">
+                        <input type="file" id="fileInput" name="file" required>
+                        <label for="fileInput" class="file-label">
+                            <span id="fileName">Choose a file...</span>
+                        </label>
+                    </div>
+                    <button type="submit" id="uploadBtn">Upload File</button>
+                </form>
+                <div id="uploadResult" class="result hidden">
+                    <div class="success-message">
+                        <h3>File Uploaded Successfully!</h3>
+                        <p>Your file is ready to share.</p>
+                        <div class="code-display">
+                            <label>Share this code with the recipient:</label>
+                            <div class="code-container">
+                                <span id="shareCode" class="code"></span>
+                                <button id="copyCodeBtn" class="copy-btn">Copy Code</button>
+                            </div>
+                        </div>
+                        <p class="instructions">The recipient can go to the download page and enter this code to receive the file.</p>
+                        <a href="/download.html" class="download-link">Go to Download Page</a>
+                    </div>
+                </div>
+            </section>
+
+            <section class="receive-section">
+                <h2>Receive a File</h2>
+                <p>If you have a code from someone who sent you a file, click the button below to download it.</p>
+                <a href="/download.html" class="primary-btn">Receive File</a>
+            </section>
+
+            <section class="info-section">
+                <h2>How It Works</h2>
+                <div class="steps">
+                    <div class="step">
+                        <div class="step-number">1</div>
+                        <div class="step-content">
+                            <h3>Upload File</h3>
+                            <p>Select and upload any file from your device</p>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">2</div>
+                        <div class="step-content">
+                            <h3>Get Code</h3>
+                            <p>Receive a unique code to share with your recipient</p>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">3</div>
+                        <div class="step-content">
+                            <h3>Share & Download</h3>
+                            <p>Recipient enters the code to download your file</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2025 Send Anywhere. Secure file sharing made simple.</p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
