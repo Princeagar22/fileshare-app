@@ -14,20 +14,10 @@ app.use(express.static('public'));
 app.use(express.json({ limit: '500mb' })); // Increase limit for file transfers
 app.use(express.raw({ type: 'application/octet-stream', limit: '500mb' })); // For binary data
 
-// Generate a simple 6-word code with unique words
+// Generate a simple 5-digit numeric code
 function generateSimpleCode() {
-    const words = ['apple', 'banana', 'cherry', 'dragon', 'elephant', 'forest', 'grape', 'house', 'island', 'jungle', 'kitchen', 'lemon', 'mountain', 'night', 'ocean', 'planet', 'queen', 'river', 'sun', 'tree'];
-    const selectedWords = [];
-    const availableWords = [...words];
-    
-    // Select 6 unique words
-    for (let i = 0; i < 6; i++) {
-        const randomIndex = Math.floor(Math.random() * availableWords.length);
-        selectedWords.push(availableWords[randomIndex]);
-        availableWords.splice(randomIndex, 1); // Remove selected word to avoid duplicates
-    }
-    
-    return selectedWords.join('-');
+    // Generate a random 5-digit number between 10000 and 99999
+    return Math.floor(10000 + Math.random() * 90000).toString();
 }
 
 // Routes
@@ -39,7 +29,19 @@ app.get('/', (req, res) => {
 
 // Create a new live transfer session
 app.post('/api/session', (req, res) => {
-    const code = generateSimpleCode();
+    let code;
+    let attempts = 0;
+    
+    // Ensure unique code
+    do {
+        code = generateSimpleCode();
+        attempts++;
+    } while (sessions.has(code) && attempts < 100); // Prevent infinite loop
+    
+    if (attempts >= 100) {
+        return res.status(500).json({ error: 'Unable to generate unique code' });
+    }
+    
     const sessionId = uuidv4();
     
     sessions.set(code, {
