@@ -1,5 +1,4 @@
 const express = require('express');
-const multer = require('multer');
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
 const fs = require('fs');
@@ -7,138 +6,143 @@ const fs = require('fs');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Create uploads directory if it doesn't exist
-const uploadDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir);
-}
+// Store session information in memory
+const sessions = new Map();
 
-// Store file information in memory (in production, use a database)
-const fileStore = new Map();
-
-// Configure multer for file uploads with larger limits
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, 'uploads/');
-  },
-  filename: function (req, file, cb) {
-    // Generate unique filename to prevent conflicts
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-  }
-});
-
-// Increase file size limits (500MB)
-const upload = multer({ 
-  storage: storage,
-  limits: {
-    fileSize: 500 * 1024 * 1024 // 500MB limit
-  }
-});
-
-// Serve static files from public directory
+// Middleware
 app.use(express.static('public'));
-app.use('/download', express.static('uploads'));
+app.use(express.json({ limit: '500mb' })); // Increase limit for file transfers
+app.use(express.raw({ type: 'application/octet-stream', limit: '500mb' })); // For binary data
 
-// Middleware to parse JSON
-app.use(express.json());
+// Generate a simple 6-word code with unique words
+function generateSimpleCode() {
+    const words = ['apple', 'banana', 'cherry', 'dragon', 'elephant', 'forest', 'grape', 'house', 'island', 'jungle', 'kitchen', 'lemon', 'mountain', 'night', 'ocean', 'planet', 'queen', 'river', 'sun', 'tree'];
+    const selectedWords = [];
+    const availableWords = [...words];
+    
+    // Select 6 unique words
+    for (let i = 0; i < 6; i++) {
+        const randomIndex = Math.floor(Math.random() * availableWords.length);
+        selectedWords.push(availableWords[randomIndex]);
+        availableWords.splice(randomIndex, 1); // Remove selected word to avoid duplicates
+    }
+    
+    return selectedWords.join('-');
+}
 
 // Routes
 
-// Home page - file upload form
+// Home page - live transfer
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Upload file endpoint
-app.post('/upload', upload.single('file'), (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ error: 'No file uploaded' });
-  }
-
-  // Generate a unique code for this file
-  const code = uuidv4().substring(0, 8).toUpperCase();
-  
-  // Store file information
-  fileStore.set(code, {
-    filename: req.file.filename,
-    originalName: req.file.originalname,
-    path: req.file.path,
-    size: req.file.size,
-    mimetype: req.file.mimetype,
-    uploadTime: new Date(),
-    downloadCount: 0 // Track downloads
-  });
-
-  // Return the code to the user
-  res.json({ 
-    success: true, 
-    code: code,
-    message: 'File uploaded successfully! Share the code with the recipient.'
-  });
+// Create a new live transfer session
+app.post('/api/session', (req, res) => {
+    const code = generateSimpleCode();
+    const sessionId = uuidv4();
+    
+    sessions.set(code, {
+        sessionId: sessionId,
+        code: code,
+        fileName: null,
+        fileSize: null,
+        fileType: null,
+        fileBuffer: null, // Store file data as buffer
+        senderConnected: false,
+        receiverConnected: false,
+        createdAt: new Date()
+    });
+    
+    res.json({ code });
 });
 
-// Download page
-app.get('/download/:code', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'download.html'));
+// Get session info
+app.get('/api/session/:code', (req, res) => {
+    const session = sessions.get(req.params.code);
+    if (!session) {
+        return res.status(404).json({ error: 'Session not found' });
+    }
+    
+    res.json({
+        code: session.code,
+        fileName: session.fileName,
+        fileSize: session.fileSize,
+        fileType: session.fileType,
+        senderConnected: session.senderConnected,
+        receiverConnected: session.receiverConnected
+    });
 });
 
-// Get file info by code
-app.get('/api/file/:code', (req, res) => {
-  const code = req.params.code.toUpperCase();
-  const fileInfo = fileStore.get(code);
-  
-  if (!fileInfo) {
-    return res.status(404).json({ error: 'File not found or code expired' });
-  }
-  
-  res.json({
-    code: code,
-    originalName: fileInfo.originalName,
-    size: fileInfo.size,
-    uploadTime: fileInfo.uploadTime,
-    downloadCount: fileInfo.downloadCount
-  });
+// Join as sender
+app.post('/api/session/:code/sender', (req, res) => {
+    const session = sessions.get(req.params.code);
+    if (!session) {
+        return res.status(404).json({ error: 'Session not found' });
+    }
+    
+    session.senderConnected = true;
+    session.fileName = req.body.fileName;
+    session.fileSize = req.body.fileSize;
+    session.fileType = req.body.fileType;
+    
+    res.json({ success: true });
 });
 
-// Download file by code
-app.get('/api/download/:code', (req, res) => {
-  const code = req.params.code.toUpperCase();
-  const fileInfo = fileStore.get(code);
-  
-  if (!fileInfo) {
-    return res.status(404).json({ error: 'File not found or code expired' });
-  }
-  
-  // Increment download counter
-  fileInfo.downloadCount += 1;
-  
-  // Set headers for file download
-  res.setHeader('Content-Disposition', `attachment; filename="${fileInfo.originalName}"`);
-  res.setHeader('Content-Type', fileInfo.mimetype);
-  
-  // Stream file for better performance with large files
-  const fileStream = fs.createReadStream(fileInfo.path);
-  fileStream.pipe(res);
-  
-  // Handle stream events
-  fileStream.on('error', (err) => {
-    console.error('File stream error:', err);
-    res.status(500).json({ error: 'Error streaming file' });
-  });
-  
-  fileStream.on('end', () => {
-    console.log(`File ${fileInfo.originalName} downloaded successfully`);
-  });
+// Join as receiver
+app.post('/api/session/:code/receiver', (req, res) => {
+    const session = sessions.get(req.params.code);
+    if (!session) {
+        return res.status(404).json({ error: 'Session not found' });
+    }
+    
+    session.receiverConnected = true;
+    
+    res.json({ success: true });
 });
 
-// Health check endpoint for load balancer
+// Upload file data
+app.post('/api/session/:code/file', (req, res) => {
+    const session = sessions.get(req.params.code);
+    if (!session) {
+        return res.status(404).json({ error: 'Session not found' });
+    }
+    
+    // Store file data as raw buffer
+    if (req.body && req.body.length > 0) {
+        session.fileBuffer = req.body;
+        res.json({ success: true });
+    } else {
+        res.status(400).json({ error: 'No file data received' });
+    }
+});
+
+// Download file data
+app.get('/api/session/:code/file', (req, res) => {
+    const session = sessions.get(req.params.code);
+    if (!session || !session.fileBuffer) {
+        return res.status(404).json({ error: 'File not found' });
+    }
+    
+    // Set headers for file download
+    res.setHeader('Content-Disposition', `attachment; filename="${session.fileName}"`);
+    res.setHeader('Content-Type', session.fileType || 'application/octet-stream');
+    res.setHeader('Content-Length', session.fileBuffer.length);
+    
+    // Send file buffer
+    res.send(session.fileBuffer);
+    
+    // Clean up session after download
+    sessions.delete(req.params.code);
+});
+
+// Health check
 app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'OK', timestamp: new Date() });
+    res.status(200).json({ status: 'OK' });
 });
 
 // Start server
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server is running on port ${PORT}`);
-  console.log(`Visit http://localhost:${PORT} to access the file sharing app`);
+    console.log(`Server is running on port ${PORT}`);
+    console.log(`Visit http://localhost:${PORT} to access the live transfer app`);
 });

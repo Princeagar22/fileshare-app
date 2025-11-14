@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Transfer - Send Anywhere</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Send Anywhere</h1>
+            <p>Live File Transfer</p>
+        </header>
+
+        <main>
+            <section class="live-transfer-section">
+                <h2>Live File Transfer</h2>
+                <p>Transfer files directly between devices without saving on server</p>
+                
+                <div class="session-setup">
+                    <div class="session-option">
+                        <h3>Start New Transfer</h3>
+                        <p>Send a file directly to another device</p>
+                        <button id="startTransferBtn" class="primary-btn">Start Transfer</button>
+                    </div>
+                    
+                    <div class="session-option">
+                        <h3>Join Transfer</h3>
+                        <p>Receive a file from another device</p>
+                        <div class="code-input-wrapper">
+                            <input type="text" id="sessionIdInput" placeholder="Enter session ID">
+                            <button id="joinTransferBtn" class="secondary-btn">Join Transfer</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="transferContainer" class="transfer-container hidden">
+                    <div id="senderView" class="sender-view hidden">
+                        <h3>Send File</h3>
+                        <div class="file-input-wrapper">
+                            <input type="file" id="liveFileInput">
+                            <label for="liveFileInput" class="file-label">
+                                <span id="liveFileName">Choose a file...</span>
+                            </label>
+                        </div>
+                        <div class="session-info">
+                            <p><strong>Session ID:</strong> <span id="senderSessionId"></span></p>
+                            <p>Share this ID with the recipient</p>
+                        </div>
+                        <button id="sendFileBtn" class="primary-btn" disabled>Send File</button>
+                        <div id="transferStatus" class="transfer-status"></div>
+                    </div>
+                    
+                    <div id="receiverView" class="receiver-view hidden">
+                        <h3>Receive File</h3>
+                        <div class="session-info">
+                            <p><strong>Session ID:</strong> <span id="receiverSessionId"></span></p>
+                        </div>
+                        <div id="fileInfo" class="file-info hidden">
+                            <h4>File Information</h4>
+                            <p><strong>Name:</strong> <span id="receivedFileName"></span></p>
+                            <p><strong>Size:</strong> <span id="receivedFileSize"></span></p>
+                            <p><strong>Type:</strong> <span id="receivedFileType"></span></p>
+                        </div>
+                        <button id="receiveFileBtn" class="primary-btn hidden">Receive File</button>
+                        <div id="receiveStatus" class="transfer-status"></div>
+                    </div>
+                </div>
+                
+                <div class="back-to-home">
+                    <a href="/" class="secondary-btn">← Back to Main Page</a>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2025 Send Anywhere. Secure file sharing made simple.</p>
+        </footer>
+    </div>
+
+    <script src="live.js"></script>
+</body>
+</html>

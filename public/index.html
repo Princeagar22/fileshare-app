@@ -3,75 +3,69 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Send Anywhere - File Sharing</title>
+    <title>Live Transfer - Send Anywhere</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
         <header>
             <h1>Send Anywhere</h1>
-            <p>Share files securely with anyone</p>
+            <p>Live File Transfer</p>
         </header>
 
         <main>
-            <section class="upload-section">
-                <h2>Upload a File</h2>
-                <form id="uploadForm" enctype="multipart/form-data">
+            <section class="live-transfer-section">
+                <h2>Live File Transfer</h2>
+                <p>Transfer files directly between devices</p>
+                
+                <div class="session-setup">
+                    <div class="session-option">
+                        <h3>Send File</h3>
+                        <p>Send a file to another device</p>
+                        <button id="sendBtn" class="primary-btn">Send File</button>
+                    </div>
+                    
+                    <div class="session-option">
+                        <h3>Receive File</h3>
+                        <p>Receive a file from another device</p>
+                        <div class="code-input-wrapper">
+                            <input type="text" id="codeInput" placeholder="Enter 6-word code">
+                            <button id="receiveBtn" class="secondary-btn">Receive File</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="senderView" class="sender-view hidden">
+                    <h3>Send File</h3>
                     <div class="file-input-wrapper">
-                        <input type="file" id="fileInput" name="file" required>
+                        <input type="file" id="fileInput">
                         <label for="fileInput" class="file-label">
                             <span id="fileName">Choose a file...</span>
                         </label>
                     </div>
-                    <button type="submit" id="uploadBtn">Upload File</button>
-                </form>
-                <div id="uploadResult" class="result hidden">
-                    <div class="success-message">
-                        <h3>File Uploaded Successfully!</h3>
-                        <p>Your file is ready to share.</p>
+                    <div class="session-info">
+                        <p><strong>Share this code:</strong></p>
                         <div class="code-display">
-                            <label>Share this code with the recipient:</label>
-                            <div class="code-container">
-                                <span id="shareCode" class="code"></span>
-                                <button id="copyCodeBtn" class="copy-btn">Copy Code</button>
-                            </div>
+                            <span id="shareCode" class="code"></span>
+                            <button id="copyCodeBtn" class="copy-btn">Copy</button>
                         </div>
-                        <p class="instructions">The recipient can go to the download page and enter this code to receive the file.</p>
-                        <a href="/download.html" class="download-link">Go to Download Page</a>
                     </div>
+                    <button id="sendFileBtn" class="primary-btn" disabled>Send File</button>
+                    <div id="transferStatus" class="transfer-status"></div>
                 </div>
-            </section>
-
-            <section class="receive-section">
-                <h2>Receive a File</h2>
-                <p>If you have a code from someone who sent you a file, click the button below to download it.</p>
-                <a href="/download.html" class="primary-btn">Receive File</a>
-            </section>
-
-            <section class="info-section">
-                <h2>How It Works</h2>
-                <div class="steps">
-                    <div class="step">
-                        <div class="step-number">1</div>
-                        <div class="step-content">
-                            <h3>Upload File</h3>
-                            <p>Select and upload any file from your device</p>
-                        </div>
+                
+                <div id="receiverView" class="receiver-view hidden">
+                    <h3>Receive File</h3>
+                    <div class="session-info">
+                        <p><strong>Code:</strong> <span id="receiveCode"></span></p>
                     </div>
-                    <div class="step">
-                        <div class="step-number">2</div>
-                        <div class="step-content">
-                            <h3>Get Code</h3>
-                            <p>Receive a unique code to share with your recipient</p>
-                        </div>
+                    <div id="fileInfo" class="file-info hidden">
+                        <h4>File Information</h4>
+                        <p><strong>Name:</strong> <span id="receivedFileName"></span></p>
+                        <p><strong>Size:</strong> <span id="receivedFileSize"></span></p>
                     </div>
-                    <div class="step">
-                        <div class="step-number">3</div>
-                        <div class="step-content">
-                            <h3>Share & Download</h3>
-                            <p>Recipient enters the code to download your file</p>
-                        </div>
-                    </div>
+                    <button id="downloadBtn" class="primary-btn hidden">Download File</button>
+                    <div id="receiveStatus" class="transfer-status"></div>
                 </div>
             </section>
         </main>
